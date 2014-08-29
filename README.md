@@ -23,8 +23,10 @@ Installation
 
 * Debian/Ubuntu
 
-      apt-get install ocaml camlidl ocaml-findlib binutils-dev \
-        libzarith-ocaml-dev libbatteries-ocaml-dev
+```
+    apt-get install ocaml camlidl ocaml-findlib binutils-dev \
+      libzarith-ocaml-dev libbatteries-ocaml-dev
+```
 
 ### Using Opam
 
@@ -32,5 +34,7 @@ In old Linux distribution, where the required libraries in its own package
 management system have lower versions than required, we recommend you to use
 opam.
 
+```
     opam install ocamlfind camlidl zarith batteries
+```
 
