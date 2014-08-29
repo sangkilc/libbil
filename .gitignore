@@ -1,3 +1,4 @@
 .gitignore
 _build
 src/bfdarch.idl
+toil.native
