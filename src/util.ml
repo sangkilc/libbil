@@ -46,3 +46,11 @@ end
 let big_int_to_hex n =
   Z.format "%x" n
 
+let load_file file =
+  let ic = open_in file in
+  let n = in_channel_length ic in
+  let s = String.create n in
+  really_input ic s 0 n;
+  close_in ic;
+  s
+

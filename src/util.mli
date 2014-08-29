@@ -34,3 +34,6 @@ end
 (** Convert [big_int] to hex string for printing *)
 val big_int_to_hex : Big_int_Z.big_int -> string
 
+(** load a file into string *)
+val load_file : string -> string
+

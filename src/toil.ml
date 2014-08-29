@@ -17,12 +17,50 @@
 
 open Bil
 
-let _ =
-  (* FIXME *)
+type load_method =
+  | LoadBytes (* just consider the file as a byte sequence *)
+  | LoadExec  (* parse the file as an ELF executable *)
+
+let current_method = ref LoadBytes
+
+let load_bytes file =
   let bh = bil_open ~arch:Bfdarch.Arch_i386 None in
-  let p = of_bytesequence bh [|'\xb9'; '\x00'; '\x45'; '\x41'; '\x00'|] 100L in
-  print_program p;
-  let p = of_bytesequence bh [|'\x31';'\xc0';'\x90'|] 0L in
+  let bytes = Util.load_file file in
+  let p = of_bytesequence bh bytes 0L in
   print_program p;
   bil_close bh
+
+let load_exec file =
+  let bh = bil_open ~arch:Bfdarch.Arch_i386 (Some file) in
+  let entry = entry_point bh in
+  let p, next = of_addr bh entry in
+  print_program [p];
+  bil_close bh
+
+let file_to_il file =
+  match !current_method with
+    | LoadBytes -> load_bytes file
+    | LoadExec -> load_exec file
+
+let specs =
+  [
+    ("-bytes",
+     Arg.Unit (fun () -> current_method := LoadBytes),
+     " consider the file as a byte sequence");
+    ("-exec",
+     Arg.Unit (fun () -> current_method := LoadExec),
+     " consider the file as an ELF executable");
+    ("--", Arg.Rest file_to_il, " specify files to load");
+  ]
+
+let anon x = raise(Arg.Bad("Bad argument: '"^x^"'"))
+
+let usage = "Usage: "^Sys.argv.(0)^" <options>\n"
+
+let _ =
+  let () = Printexc.record_backtrace true in
+  try
+    Arg.parse (Arg.align specs) anon usage
+  with e ->
+    Printexc.print_backtrace stderr
 

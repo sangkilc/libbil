@@ -30,6 +30,12 @@ let bil_close bh =
 let of_bytesequence bh bytes addr =
   byte_sequence_to_bil bh bytes addr
 
+let of_addr bh addr =
+  instr_to_bil bh addr
+
+let entry_point bh =
+  get_entry_point bh
+
 let print_program prog =
   List.iter (fun instr ->
     List.iter (fun stmt -> print_endline (Pp.ast_stmt_to_string stmt)) instr

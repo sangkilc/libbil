@@ -27,7 +27,18 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #include <stdarg.h>
 #include <malloc.h>
 
+#include <caml/mlvalues.h>
+#include <caml/callback.h>
+#include <caml/memory.h>
+#include <caml/alloc.h>
+
 #define DEFAULT_TARGET    "i686-pc-linux-gnu"
+
+typedef struct bfd_handle {
+    struct bfd*                bfdp;
+    struct disassemble_info*   disasp;
+    int                        is_from_file;
+} bh;
 
 void error_exit( const char* msg )
 {
@@ -35,41 +46,42 @@ void error_exit( const char* msg )
     exit( 1 );
 }
 
-bfdp new_bfd( const char* filename, int arch )
+static
+struct bfd* new_bfd_internal( const char* filename, int arch )
 {
+    char** matching;
     enum bfd_architecture _arch = (enum bfd_architecture) arch;
-    bfdp p = bfd_openr( filename, DEFAULT_TARGET );
+    struct bfd* p = bfd_openr( filename, DEFAULT_TARGET );
     if ( !p ) error_exit( "failure: bfd_openr" );
 
     if ( _arch == bfd_arch_unknown ) {
         if ( bfd_check_format( p, bfd_archive ) ) {
             // TODO: add archive handling code
+            bfd_close_all_done( p );
             error_exit( "currently not supported." );
         }
-        return p;
+        if ( bfd_check_format_matches( p, bfd_object, &matching ) ) {
+            return p;
+        }
+        if ( bfd_get_error() == bfd_error_file_ambiguously_recognized ) {
+            bfd_close_all_done( p );
+            error_exit( "file format is ambiguosly matched" );
+        }
+        if ( bfd_get_error() != bfd_error_file_not_recognized ) {
+            bfd_close_all_done( p );
+            error_exit( "file is not recognized" );
+        }
+        if ( bfd_check_format_matches( p, bfd_core, &matching ) ) {
+            return p;
+        }
+        error_exit( "failed to load the given file" );
     } else {
         bfd_set_arch_info( p, bfd_lookup_arch(_arch, 0) );
         return p;
     }
 }
 
-bfdp new_bfd_from_buf( int arch )
-{
-    return new_bfd( "/dev/null", arch );
-}
-
-bfdp new_bfd_from_file( const char* filename )
-{
-    return new_bfd( filename, bfd_arch_unknown );
-}
-
-void delete_bfd( bfdp abfd )
-{
-    if ( bfd_close_all_done( abfd ) == TRUE ) return;
-    else error_exit( "failed to close with bfd_close_all_done" );
-}
-
-disasp new_disasm_info( bfdp abfd )
+struct disassemble_info* new_disasm_info( struct bfd* abfd )
 {
     struct disassemble_info *di =
       (struct disassemble_info *) malloc( sizeof(struct disassemble_info) );
@@ -85,6 +97,7 @@ disasp new_disasm_info( bfdp abfd )
     di->disassembler_needs_relocs = FALSE;
 
     di->buffer = NULL;
+    di->symtab = NULL;
 
     if ( bfd_big_endian( abfd ) )
         di->display_endian = di->endian = BFD_ENDIAN_BIG;
@@ -96,12 +109,53 @@ disasp new_disasm_info( bfdp abfd )
     return di;
 }
 
-void update_disasm_info( disasp di,
+bh* new_bfd( const char* filename, int arch, int is_from_file )
+{
+    bh* p = (bh*) malloc( sizeof( bh ) );
+    if ( !p ) error_exit( "failure: new_bfd.malloc" );
+
+    p->bfdp = new_bfd_internal( filename, arch );
+    p->disasp = new_disasm_info( p->bfdp );
+    p->is_from_file = is_from_file;
+
+    return p;
+}
+
+bhp new_bfd_from_buf( int arch )
+{
+    return new_bfd( "/dev/null", arch, 0 );
+}
+
+bhp new_bfd_from_file( const char* filename )
+{
+    return new_bfd( filename, bfd_arch_unknown, 1 );
+}
+
+void delete_bfd( bhp _p )
+{
+    bh* p = (bh*) _p;
+
+    if ( p->disasp ) {
+        free( p->disasp->buffer );
+        free( p->disasp );
+        p->disasp = NULL;
+    }
+
+    if ( bfd_close_all_done( p->bfdp ) == TRUE ) return;
+    else error_exit( "failed to close with bfd_close_all_done" );
+
+    free( p );
+    p = NULL;
+}
+
+void update_disasm_info( bhp _p,
                          char* buffer,
                          int len,
                          unsigned long long addr )
 {
     bfd_byte* aux;
+    bh* p = (bh*) _p;
+    struct disassemble_info* di = p->disasp;
 
     if ( malloc_usable_size( di->buffer ) < len ) {
         aux = (bfd_byte*) realloc( di->buffer, len );
@@ -116,15 +170,6 @@ void update_disasm_info( disasp di,
     if ( !di->buffer )
         error_exit( "failed to allocate disassemble_info.buffer" );
     memcpy( di->buffer, buffer, len );
-}
-
-void delete_disasm_info( disasp di )
-{
-    if ( di ) {
-        free( di->buffer );
-        free( di );
-        di = NULL;
-    }
 }
 
 struct bprintf_buffer {
@@ -168,13 +213,14 @@ int bprintf( struct bprintf_buffer *dest, const char *fmt, ... )
     return ret;
 }
 
-char* disasm( bfdp abfd,
-              disasp di,
+char* disasm( bhp _p,
               unsigned long long addr )
 {
     static struct bprintf_buffer bits = {NULL, NULL, 0};
 
-    disassembler_ftype disas = disassembler( abfd );
+    bh* p = (bh*) _p;
+    struct disassemble_info* di = p->disasp;
+    disassembler_ftype disas = disassembler( p->bfdp );
     fprintf_ftype old_fprintf_func = di->fprintf_func;
     void *oldstream = di->stream;
     di->fprintf_func = (fprintf_ftype) bprintf;
@@ -188,5 +234,56 @@ char* disasm( bfdp abfd,
     di->stream = oldstream;
 
     return bits.str;
+}
+
+unsigned long long get_entry_point( bhp _p )
+{
+    bh* p = (bh*) _p;
+    return (unsigned long long) p->bfdp->start_address;
+}
+
+value c2ml_identity( sec_data* input )
+{
+    return (value) *input;
+}
+
+value get_section_data_internal( bhp _p )
+{
+    CAMLparam0();
+    CAMLlocal4( data, v, str, tupl );
+
+    bh* p = (bh*) _p;
+    struct bfd* abfd = p->bfdp;
+    asection *sect;
+    bfd_size_type datasize = 0;
+
+    data = Val_emptylist;
+
+    if ( p->is_from_file ) {
+
+        for ( sect = abfd->sections; sect != NULL; sect = sect->next ) {
+            datasize = bfd_get_section_size( sect );
+            str = caml_alloc_string( datasize );
+            bfd_get_section_contents( abfd, sect,
+                                      (bfd_byte*)String_val(str),
+                                      0, datasize );
+            tupl = caml_alloc_tuple( 3 );
+            Store_field( tupl, 0, str );
+            Store_field( tupl, 1, caml_copy_int64( sect->vma ) );
+            Store_field( tupl, 2, caml_copy_int64( sect->vma + datasize ) );
+            v = caml_alloc_small( 2, 0 );
+            Field( v, 0 ) = tupl;
+            Field( v, 1 ) = data;
+            data = v;
+        }
+
+    }
+
+    CAMLreturn( data );
+}
+
+sec_data get_section_data( bhp _p )
+{
+    return (sec_data) get_section_data_internal( _p );
 }
 

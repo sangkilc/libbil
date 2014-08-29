@@ -17,24 +17,29 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 import "libbfd/bfdarch.idl";
 
-typedef [abstract,ptr] struct bfd* bfdp;
-typedef [abstract,ptr] struct disassemble_info* disasp;
+/// handle
+typedef [abstract,ptr] void* bhp;
 
-bfdp new_bfd_from_buf( [in] enum architecture arch );
-bfdp new_bfd_from_file( [in,string] const char* filename );
+/// section data (data, startaddr, endaddr)
+quote(H, "#include <caml/mlvalues.h>");
+typedef [mltype("(string * int64 * int64) list"),
+         c2ml(c2ml_identity), ml2c(ml2c_identity)]
+struct _sec_data* sec_data;
 
-void delete_bfd( bfdp abfd );
+bhp new_bfd_from_buf( [in] enum architecture arch );
+bhp new_bfd_from_file( [in,string] const char* filename );
 
-disasp new_disasm_info( [in] bfdp abfd );
+void delete_bfd( bhp abfd );
 
-void delete_disasm_info( disasp di );
-
-void update_disasm_info( [in] disasp di,
-                         [in] char buffer[],
+void update_disasm_info( [in] bhp _p,
+                         [in,string] char* buffer,
                          [in] int len,
                          [in] unsigned __int64 addr );
 
-[string] char* disasm( [in] bfdp abfd,
-                       [in] disasp di,
+[string] char* disasm( [in] bhp _p,
                        [in] unsigned __int64 addr );
+
+unsigned __int64 get_entry_point( [in] bhp _p );
+
+sec_data get_section_data( [in] bhp _p );
 
