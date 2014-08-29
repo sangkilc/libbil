@@ -2,9 +2,6 @@
     The type used for variables and functions to create and use them.
  *)
 
-module D = Debug.Make(struct let name="Var" and default=`Debug end)
-open D
-
 module V = struct
 
   type t = V of int * string * Type.typ

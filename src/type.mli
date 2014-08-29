@@ -1,5 +1,5 @@
 (** Type declarations for BAP.
-    
+
     @author Ivan Jager
 *)
 
@@ -7,7 +7,7 @@
 type addr = int64
 
 (** Labels are program locations that can be jumped to. *)
-type label = 
+type label =
   | Name of string (** For named labels*)
   | Addr of addr (** For addresses. Cast REG_type as unsigned when comparing. *)
 
@@ -53,7 +53,7 @@ type binop_type =
   | LE (** Unsigned less than or equal to *)
   | SLT (** Signed less than *)
   | SLE (** Signed less than or equal to *)
-                  
+
 
 (** Unary operations implemented in the IR *)
 type unop_type =
@@ -70,7 +70,7 @@ type taint_type = Taint of int
 type usage = RD | WR | RW
 
 (** Information about a concrete operand from a trace *)
-type context = 
+type context =
  {
    name  : string;
    mem   : bool;
@@ -82,7 +82,7 @@ type context =
  }
 
 (** Attributes are extra information contained in a [stmt]. *)
-type attribute = 
+type attribute =
   | Pos of pos  (** The position of a statement in the source file *)
   | Asm of string (** Assembly representation of the following IL code *)
   | Address of addr (** The address corresponding to lifted IL. *)
@@ -107,8 +107,8 @@ type 'a visit_action =
   | DoChildren      (** Continue exploring children of the current node. Changes to children will propagate up. *)
   | ChangeTo of 'a  (** Replace the current object with the specified one. *)
   | ChangeToAndDoChildren of 'a (** Replace the current object with
-				    the given one, and visit children
-				    of the {b replacement} object. *)
+                                    the given one, and visit children
+                                    of the {b replacement} object. *)
 
 (** Specifies whether generated VCs will be evaluated for
     satisfiability or validity. Alternatively, quantifiers can be
