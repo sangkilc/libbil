@@ -5,8 +5,6 @@ open Type
 open Ast
 open Big_int_Z
 open Big_int_convenience
-module D = Debug.Make(struct let name="Typecheck" and default=`NoDebug end)
-open D
 
 exception TypeError of string
 

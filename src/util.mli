@@ -255,38 +255,3 @@ val big_int_of_binstring : ?e:[`Little | `Big] -> string -> Big_int_Z.big_int
     code. *)
 val run_with_remapped_fd :
   Unix.file_descr -> Unix.file_descr -> (unit -> 'a) -> 'a
-
-(* Deprecated: BatList.take *)
-(* val take : int -> 'a list -> 'a list *)
-(* Deprecated: BatList.append *)
-(* val fast_append : 'a list -> 'a list -> 'a list *)
-
-(** {3 Printing/status functions} *)
-
-(** Status printer module *)
-module StatusPrinter :
-sig
-  (** [init s n] starts a new process called [s] with [n] steps. *)
-  val init : string -> int -> unit
-
-  (** [inc ()] indicates a step has completed. *)
-  val inc  : unit -> unit
-
-  (** [stop ()] indicates the process has completed. *)
-  val stop : unit -> unit
-end
-
-
-(** [print_separated_list printer sep l] converts [l] to a string by
-    computing [printer e] for each element [e], and concatenating the
-    results with [sep]. *)
-val print_separated_list : ('a -> string) -> string -> 'a list -> string
-
-(** [print_obj_info s obj] prints the size of object [obj] with string
-    [s] in the debug logs if the [UtilSize] module has debugging
-    enabled. *)
-val print_obj_info : string -> 'a -> unit
-
-(** If the [UtilMemUse] module has debugging enabled, prints
-    information about the memory use of the process. *)
-val print_mem_usage : unit -> unit

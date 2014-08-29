@@ -80,7 +80,6 @@ asection bfd_next_section( asection *s);
 
 typedef int bfd_boolean;
 typedef long long file_ptr;
-typedef unsigned long long bfd_size_type;
 
 bfd_boolean bfd_get_section_contents
 (bfdp abfd, section_ptr section, [out, length_is(count), bigarray] char location[], file_ptr offset,

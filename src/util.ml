@@ -1,6 +1,7 @@
 (* open BatString -- overrides compare for some reason! *)
-open BatList
 open Big_int_Z
+
+module List = struct include List include BatList end
 
 let id = fun x -> x
 
@@ -125,7 +126,7 @@ let list_delete l e =
   in
     delete_aux [] l
 
-let list_compare = BatList.make_compare
+let list_compare = BatList.compare
 
 let list_cart_prod2 f l1 l2 =
   List.iter
@@ -498,154 +499,3 @@ let run_with_remapped_fd fd_from fd_to f =
   Unix.close fd_to_saved;
 
   rv
-
-(* let take = BatList.take *)
-(* let fast_append = append *)
-
-
-(* let has_some o = o <> None *)
-
-
-(** Some -> true, None -> false *)
-(* let has_some x = x <> None *)
-
-
-
-(* (\* Deal with system calls (stolen from  *)
-(*    http://rosettacode.org/wiki/Execute_a_system_command#OCaml ) *\) *)
-(* let check_exit_status =  *)
-(*   let warn = "warning: the process was" in *)
-(*   function *)
-(*   | Unix.WEXITED 0 -> () *)
-(*   | Unix.WEXITED r ->  *)
-(*     Printf.eprintf "%s terminated with exit code (%d)\n%!" warn r *)
-(*   | Unix.WSIGNALED n -> *)
-(*     Printf.eprintf "%s killed by a signal (number: %d)\n%!" warn n *)
-(*   | Unix.WSTOPPED n ->  *)
-(*     Printf.eprintf "%s stopped by a signal (number: %d)\n%!" warn n *)
-(* ;; *)
-
-module StatusPrinter =
-struct
-  module D = Debug.Make(struct let name = "UtilStatus" and default=`Debug end)
-  open D
-
-
-  let updatetime = 5.0 (* update speed estimate every updatetime seconds *)
-  let total = ref 0
-  let current = ref 0
-  let percentage = ref 0
-  let last = ref 0
-  let lasttime = ref 0.0
-  let message = ref "Status"
-  let starttime = ref 0.0
-
-  let cpercent () =
-    try
-      (!current * 100 / !total)
-    with Division_by_zero -> 0
-
-  let rate () =
-    let deltat = Unix.gettimeofday () -. !lasttime in
-    let deltay = !current - !last in
-      if deltat == 0.0 || deltay == 0 then
-        -1.0
-          else
-        (float_of_int deltay) /. deltat
-
-  let update () =
-    let p = cpercent () in
-    if p = -1 then (
-      if (debug()) then Printf.printf "%s...\r" !message)
-    else (
-      if (debug()) then Printf.printf "%s: %d%% (%f eps)\r" !message p (rate ()) ;
-
-      percentage := p;
-      last := !current;
-      lasttime := Unix.gettimeofday();
-      flush stdout)
-
-  let init msg size =
-    last := 0 ;
-    current := 0 ;
-    percentage := -1 ;
-    message := msg ;
-    total := size ;
-    starttime := Unix.gettimeofday () ;
-    lasttime := !starttime ;
-    update ()
-
-  let inc () =
-    if !total != 0 then (
-      current := !current + 1 ;
-      let percentage' = cpercent() in
-        if ((percentage' != !percentage)
-            (*|| ((Unix.gettimeofday() -. !lasttime) >= updatetime)*) ) then
-          (update ()))
-
-  let stop () =
-    if (debug()) then
-          Printf.printf "%s: Done! (%f seconds)\n" !message
-                (Unix.gettimeofday () -. !starttime) ;
-    flush stdout
-end
-
-let rec print_separated_list ps sep lst =
-  let rec doit acc = function
-    | [] -> acc^""
-    | x::[] -> acc^(ps x)
-    | x::y::zs -> let acc = (ps x)^sep in
-        (doit acc (y::zs))
-  in
-    doit "" lst
-
-let print_obj_info title value =
-  let module D = Debug.Make(struct let name = "UtilSize" and default=`NoDebug end) in
-  if D.debug() then
-    let i = Objsize.objsize value in
-    D.dprintf "%S : data_words=%i headers=%i depth=%i\n    \
-      bytes_without_headers=%i bytes_with_headers=%i"
-      title i.Objsize.data i.Objsize.headers i.Objsize.depth
-      (Objsize.size_without_headers i)
-      (Objsize.size_with_headers i);
-    D.dprintf "%S : total size in MB = %i" title ((Objsize.size_with_headers i) / 1048576)
-
-let syscall ?(env=[| |]) cmd =
-  let check_exit_status =
-    let warn = "warning: the process was" in
-    function
-      | Unix.WEXITED 0 -> ()
-      | Unix.WEXITED r ->
-        Printf.eprintf "%s terminated with exit code (%d)\n%!" warn r
-      | Unix.WSIGNALED n ->
-        Printf.eprintf "%s killed by a signal (number: %d)\n%!" warn n
-      | Unix.WSTOPPED n ->
-        Printf.eprintf "%s stopped by a signal (number: %d)\n%!" warn n
-  in
-  let ic, oc, ec = Unix.open_process_full cmd env in
-  let buf1 = Buffer.create 96
-  and buf2 = Buffer.create 48 in
-  (try
-     while true do Buffer.add_channel buf1 ic 1 done
-   with End_of_file -> ());
-  (try
-     while true do Buffer.add_channel buf2 ec 1 done
-   with End_of_file -> ());
-  let exit_status = Unix.close_process_full (ic, oc, ec) in
-  check_exit_status exit_status;
-  (Buffer.contents buf1,
-   Buffer.contents buf2)
-
-let print_mem_usage _ =
-  let module D =
-        Debug.Make(struct let name = "UtilMemUse" and default=`NoDebug end)
-  in
-  if D.debug() then
-    let pid = Unix.getpid() in
-    let cmd =
-      "ps auxw | grep \'^[a-zA-Z]\\{1,\\}[[:space:]]\\{1,\\}"^
-        (string_of_int pid)^"\'"
-    in
-    let (out1,out2) = syscall cmd in
-    D.pdebug (out1^out2)
-

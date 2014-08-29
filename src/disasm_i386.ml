@@ -2122,7 +2122,7 @@ let parse_instr g addr =
     let maskintres1 = if (b & 32L) = 0L then false else true in
     let outselectsig = if (b & 64L) = 0L then LSB else MSB in
     let outselectmask = sig_to_mask outselectsig in
-    if (b & 128L) <> 0L then wprintf "Most significant bit of Imm8 control byte should be set to 0";
+    if (b & 128L) <> 0L then prerr_endline "Most significant bit of Imm8 control byte should be set to 0";
 
     {ssize=ssize; ssign=ssign; agg=agg; negintres1=negintres1; maskintres1=maskintres1; outselectsig=outselectsig; outselectmask=outselectmask}
 
@@ -2362,8 +2362,8 @@ let parse_instr g addr =
               (Mov(prefix.opsize, Oreg(b1 & 7), i, None), na)
     | 0xc2 | 0xc3 (* Near ret *)
     | 0xca | 0xcb (* Far ret *)->
-      let far_ret = if (b1 = 0xc2 or b1 = 0xc3) then false else true in
-      if (b1 = 0xc3 or b1 = 0xcb) then (Retn(None, far_ret), na)
+      let far_ret = if (b1 = 0xc2 || b1 = 0xc3) then false else true in
+      if (b1 = 0xc3 || b1 = 0xcb) then (Retn(None, far_ret), na)
       else let (imm,na) = parse_immw na in
            (Retn(Some(r32, imm), far_ret), na)
     | 0xc6

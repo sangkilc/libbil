@@ -117,6 +117,9 @@ let _ = dispatch begin function
        flag ["ocaml"; "link"; "native"]
          (S[A"-inline";A"10"]);
 
+       (* bfdarch must be generated first *)
+       dep ["ocaml"; "compile"] ["src/bfdarch.ml"];
+
        (* camlidl rules starts here *)
        rule "camlidl"
          ~prods:["%.mli"; "%.ml"; "%_stubs.c"]
