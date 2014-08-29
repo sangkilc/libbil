@@ -66,6 +66,8 @@ let _ = dispatch begin function
        tag_any
          ["pkg_str";
           "pkg_unix";
+          "pkg_zarith";
+          "pkg_batteries";
          ];
 
    | After_rules ->

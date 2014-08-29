@@ -14,5 +14,6 @@ Dependency
 
 In Debian,
 
-apt-get install ocaml ocaml-findlib
+apt-get install ocaml ocaml-findlib \
+  libzarith-ocaml-dev libbatteries-ocaml-dev
 

@@ -8,10 +8,11 @@
     @author Ivan Jager
 *)
 
-open BatListFull
 open Type
 open Big_int_Z
 open Big_int_convenience
+
+module List = struct include BatList end
 
 type var = Var.t
 
@@ -256,9 +257,9 @@ let quick_stmt_eq s1 s2 =
     let b3 = List.for_all2 (==) l3 r3 in
     let b4 = List.for_all2 (==) l4 r4 in
     let b5 = List.for_all2 (==) l5 r5 in
-    if b1 & b2 & b3 & b4 & b5 then
+    if b1 && b2 && b3 && b4 && b5 then
       true
-    else if b2 & b3 & b4 & b5 then
+    else if b2 && b3 && b4 && b5 then
       (* e1 and e2 are not physically equal.  But maybe their subexpressions
          are physically equal. *)
       List.for_all2 quick_exp_eq l1 r1

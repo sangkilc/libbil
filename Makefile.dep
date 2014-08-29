@@ -18,3 +18,5 @@ bin,ocamlbuild
 # check libraries
 lib,unix
 lib,str
+lib,zarith,1.2
+lib,batteries,2.1

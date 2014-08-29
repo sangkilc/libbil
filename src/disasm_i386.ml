@@ -7,12 +7,9 @@ open BatPervasives
 open Big_int_Z
 open Big_int_convenience
 open Type
-open BatListFull
 
 module VH=Var.VarHash
-
-module D = Debug.Make(struct let name = "Disasm_i386" and default=`NoDebug end)
-open D
+module List = struct include BatList end
 
 let compute_segment_bases = ref true
 

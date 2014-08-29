@@ -16,7 +16,7 @@
 OCAMLBUILD=ocamlbuild
 
 all: depcheck
-	$(OCAMLBUILD) -Is src -Xs buildtools toil.native
+	$(OCAMLBUILD) -Is src -Xs buildtools bil.cmxa toil.native
 
 clean: depcheck
 	$(OCAMLBUILD) -clean
