@@ -15,8 +15,11 @@
 
 # check binaries
 bin,ocamlbuild
+bin,camlidl
 # check libraries
 lib,unix
 lib,str
 lib,zarith,1.2
 lib,batteries,2.1
+# check headers
+header,bfd.h

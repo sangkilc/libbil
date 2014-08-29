@@ -1,5 +1,4 @@
 
-#include "../libasmir/config.h"
 #if SIZEOF_BFD_VMA == 4
 typedef [int64] unsigned long address_t;
 typedef [int64] unsigned long bfd_size_type;

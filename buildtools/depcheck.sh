@@ -58,10 +58,36 @@ libcheck () {
   return 0
 }
 
+headercheck () {
+  headerfile=$1
+  tmpdir=tmp.$RANDOM
+  tmpfile=$tmpdir/tmp.c
+  mkdir $tmpdir
+  cat << EOF > $tmpfile
+#include "$headerfile"
+int main() {return 0;}
+EOF
+  if (( $? > 0 )); then
+    rm -rf $tmpdir
+    echo "Error: Failed to create $tmpfile"
+    exit 1
+  fi
+
+  gcc -Wall -Werror $tmpfile -o $tmpdir/a.out
+  success=$?
+  rm -rf $tmpdir
+
+  if (( $success > 0 )); then
+    echo "Error: failed to find [$headerfile]"
+    exit 1
+  fi
+}
+
 ### self sanitization
 bincheck "awk"
 bincheck "sed"
 bincheck "tr"
+bincheck "gcc"
 bincheck "ocamlfind"
 
 ### reading input
@@ -74,37 +100,48 @@ if [ -z $depfile ];then
 Usage: $0 <dependency file>
 
     Dependency files must include a dependency command per line. A
-    dependency command is a comma-separated tuple, which checks either
-    a binary dependency or a library dependency.
+    dependency command is a comma-separated tuple, which checks
+    a binary dependency, a library dependency, or a header file
+    dependency.
 
-    A binary dependency can be specified using a 2-tuple: (bin, binary
-    name). The first field specifies a command, thus it should not be
-    changed.
+    A binary dependency is a 2-tuple (bin, binary name). The first
+    field specifies a command, thus it should not be changed.
 
     A library dependency can be specified either by:
         2-tuple (lib, library name)
     or
         3-tuple (lib, library name, required version).
 
-    The following example dependency file checks two dependencies:
+    A header file dependency is a 2-tuple (header, file name).
+
+    The following example dependency file checks the followings:
     (1) check if the binary "ocaml" presents in the system;
     (2) check if the library (batteries) exists in the system and if
-    the library has a version greater or equal to 2.1.
+    the library has a version greater or equal to 2.1;
+    (3) check if the header file (bfd.h) exists
 
     (An example dependency file)
     bin,ocaml
     lib,batteries,2.1
+    header,bfd.h
 
 EOF
   exit 1
 fi
 
+IFS=$'\n'
 ### parsing the dependency file
 for line in $(cat $depfile | grep -v '^#' | grep -v '^\s+$'); do
   IFS=, read cmd name ver <<<$line
+  cmd=$(echo $cmd | sed -e 's/^ *//' -e 's/ *$//')
+  name=$(echo $name | sed -e 's/^ *//' -e 's/ *$//')
+  ver=$(echo $ver | sed -e 's/^ *//' -e 's/ *$//')
+
   if [[ $cmd == "bin" ]]; then
     bincheck $name
   elif [[ $cmd == "lib" ]]; then
     libcheck $name $ver
+  elif [[ $cmd == "header" ]]; then
+    headercheck $name
   fi
 done
