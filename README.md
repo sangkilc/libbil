@@ -19,14 +19,14 @@ Dependency
 Installation
 ------------
 
-h3. Using default package managers,
+### Using default package managers
 
 * Debian/Ubuntu
 
-    apt-get install ocaml camlidl ocaml-findlib binutils-dev \
-      libzarith-ocaml-dev libbatteries-ocaml-dev
+      apt-get install ocaml camlidl ocaml-findlib binutils-dev \
+        libzarith-ocaml-dev libbatteries-ocaml-dev
 
-h3. Using Opam
+### Using Opam
 
 In old Linux distribution, where the required libraries in its own package
 management system have lower versions than required, we recommend you to use
