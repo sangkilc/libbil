@@ -87,6 +87,7 @@ EOF
 bincheck "awk"
 bincheck "sed"
 bincheck "tr"
+bincheck "cut"
 bincheck "gcc"
 bincheck "ocamlfind"
 
@@ -131,11 +132,10 @@ fi
 
 IFS=$'\n'
 ### parsing the dependency file
-for line in $(cat $depfile | grep -v '^#' | grep -v '^\s+$'); do
-  IFS=, read cmd name ver <<<$line
-  cmd=$(echo $cmd | sed -e 's/^ *//' -e 's/ *$//')
-  name=$(echo $name | sed -e 's/^ *//' -e 's/ *$//')
-  ver=$(echo $ver | sed -e 's/^ *//' -e 's/ *$//')
+for line in $(cat $depfile | grep -v '^#' | grep -v '^\s*$'); do
+  cmd=$(echo $line | cut -d, -f1 | sed -e 's/^ *//' -e 's/ *$//')
+  name=$(echo $line | cut -d, -f2 | sed -e 's/^ *//' -e 's/ *$//')
+  ver=$(echo $line | cut -d, -f3 | sed -e 's/^ *//' -e 's/ *$//')
 
   if [[ $cmd == "bin" ]]; then
     bincheck $name
