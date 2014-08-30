@@ -16,4 +16,13 @@
 *)
 
 open Disasm
+open Asmir
+
+let of_bytesequence bytes arch addr =
+  byte_sequence_to_bil bytes arch addr
+
+let print_program prog =
+  List.iter (fun instr ->
+    List.iter (fun stmt -> print_endline (Pp.ast_stmt_to_string stmt)) instr
+  ) prog
 

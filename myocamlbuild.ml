@@ -36,19 +36,14 @@ let find_syntaxes () = ["camlp4o"; "camlp4r"]
 let ocamlfind x = S[A"ocamlfind"; x]
 
 (* camlidl command *)
-let camlidl = S([A"camlidl"; A"-header"])
+let camlidl = S([A"camlidl"])
 
-let is_all_whitespace s =
-  try
-    String.iter (fun c -> if c <> ' ' then raise Exit) s;
-    true
-  with Exit -> false
-
-let get_env_elem s =
-  let it = getenv s in
-  match is_all_whitespace it with
-    | true -> ""
-    | false -> it
+(* ocaml path *)
+let ocamlpath =
+  let ch = Unix.open_process_in "ocamlfind printconf path" in
+  let line = input_line ch in
+  ignore (Unix.close_process_in ch);
+  line
 
 let _ = dispatch begin function
    | Before_options ->
@@ -69,6 +64,10 @@ let _ = dispatch begin function
           "pkg_zarith";
           "pkg_batteries";
          ];
+
+       tag_file "libbfd/libbfd_stubs.c" ["stubs"];
+       tag_file "libbfd/bfdarch_stubs.c" ["stubs"];
+       tag_file "src/toil.native" ["bil_link"];
 
    | After_rules ->
 
@@ -117,8 +116,41 @@ let _ = dispatch begin function
        flag ["ocaml"; "link"; "native"]
          (S[A"-inline";A"10"]);
 
-       (* bfdarch must be generated first *)
-       dep ["ocaml"; "compile"] ["src/bfdarch.ml"];
+       (* c stub generated from camlidl *)
+       flag ["c"; "compile"; "stubs"]
+         (S[A"-ccopt";A("-I"^ocamlpath^"/camlidl");]);
+
+       (* camlidl needs to consider bfdarch *)
+       flag ["camlidl"; "compile"]
+         (S[A"-header"; A"-I"; A"libbfd"]);
+
+       dep ["camlidl"; "compile"]
+         [
+           "libbfd/bfdarch.idl"
+         ];
+
+       (* compile dependencies *)
+       dep ["ocaml"; "compile"]
+         [
+           "libbfd/bfdarch.ml";
+           "libbfd/libbfd.ml";
+           "libbfd/libbfd_helper.o";
+           "libbfd/libbfd_helper.c";
+           "libbfd/libbfd_stubs.o";
+           "libbfd/bfdarch_stubs.o";
+         ];
+
+       (* linking rule *)
+       flag ["ocaml"; "link"; "bil_link"]
+         (S[
+           A"libbfd/libbfd_helper.o";
+           A"libbfd/libbfd_stubs.o";
+           A"libbfd/bfdarch_stubs.o";
+           A"-cclib"; A"-lbfd";
+           A"-cclib"; A"-lopcodes";
+           A"-cclib"; A("-L"^ocamlpath^"/camlidl");
+           A"-cclib"; A"-lcamlidl";
+         ]);
 
        (* camlidl rules starts here *)
        rule "camlidl"

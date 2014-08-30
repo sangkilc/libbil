@@ -1,4 +1,4 @@
 .gitignore
 _build
-src/bfdarch.idl
+libbfd/bfdarch.idl
 toil.native

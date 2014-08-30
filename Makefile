@@ -15,23 +15,27 @@
 
 OCAMLBUILD=ocamlbuild
 
-all: depcheck src/libbfd.idl
-	$(OCAMLBUILD) -Is src -Xs buildtools bil.cmxa toil.native
+all: depcheck libbfd/libbfd.idl
+	$(OCAMLBUILD) -Is src,libbfd -Xs buildtools bil.cmxa toil.native
 
 clean: depcheck
 	$(OCAMLBUILD) -clean
+	rm -f libbfd/bfdarch.idl
 
 depcheck: Makefile.dep
 	@buildtools/depcheck.sh $<
 
-src/libbfd.idl: src/bfdarch.idl
+libbfd/libbfd.idl: libbfd/bfdarch.idl
 
-src/bfdarch.idl:
+libbfd/bfdarch.idl:
 	echo '#include "bfd.h"' \
 		| $(CC) -E -xc - \
 		| awk 'BEGIN { go=0; } /^enum bfd_architecture$$/ { go=1; } \
 		       go && $$0 != "" { print; } \
 		       /machine_t/ { print; } \
-		       /};$$/ { go=0; }' > src/bfdarch.idl
+		       /};$$/ { go=0; }' \
+		| sed 's,bfd_arch_,arch_,' \
+		| sed 's,enum bfd_architecture,enum architecture,' \
+		  > libbfd/bfdarch.idl
 
 .PHONY: all clean depcheck

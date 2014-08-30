@@ -12,6 +12,8 @@ This project is forked off from [BAP](http://bap.ece.cmu.edu/) 0.7.
 Dependency
 ----------
 
+* GNU Make
+* Findlib
 * Zarith (above 1.2)
 * Batteries (above 2.1)
 * Binutils
@@ -24,8 +26,8 @@ Installation
 * Debian/Ubuntu
 
 ```
-    apt-get install ocaml camlidl ocaml-findlib binutils-dev \
-      libzarith-ocaml-dev libbatteries-ocaml-dev
+apt-get install ocaml camlidl ocaml-findlib binutils-dev \
+  libzarith-ocaml-dev libbatteries-ocaml-dev
 ```
 
 ### Using Opam
@@ -35,6 +37,5 @@ management system have lower versions than required, we recommend you to use
 opam.
 
 ```
-    opam install ocamlfind camlidl zarith batteries
+opam install ocamlfind camlidl zarith batteries
 ```
-
