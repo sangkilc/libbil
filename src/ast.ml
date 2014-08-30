@@ -119,25 +119,6 @@ let num_exp = function
     | Let(v1,e1,e2) -> [e1;e2], [], [], [], [v1], [], [], []
     | Unknown(s1,t1) -> [], [t1], [], [], [], [s1], [], []
 
-(*
-(** quick_exp_eq e1 e2 returns true if and only if the subexpressions
-    in e1 and e2 are *physically* equal. *)
-let quick_exp_eq e1 e2 =
-  if (num_exp e1) <> (num_exp e2) then false else
-    let l1,l2,l3,l4,l5,l6,l7,l8 = getargs e1 in
-    let r1,r2,r3,r4,r5,r6,r7,r8 = getargs e2 in
-    let b1 = List.for_all2 (==) l1 r1 in
-    let b2 = List.for_all2 (==) l2 r2 in
-    let b3 = List.for_all2 (==) l3 r3 in
-    let b4 = List.for_all2 (==) l4 r4 in
-    let b5 = List.for_all2 (==) l5 r5 in
-    let b6 = List.for_all2 (==) l6 r6 in
-    let b7 = List.for_all2 (==) l7 r7 in
-    let b8 = List.for_all2 (==) l8 r8 in
-    if b1 & b2 & b3 & b4 & b5 & b6 & b7 & b8 then
-      true else false
-*)
-
 let quick_exp_eq e1 e2 =
   match e1, e2 with
     | Int (i1, t1), Int (i2, t2) ->
