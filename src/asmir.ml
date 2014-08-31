@@ -37,7 +37,7 @@ let string_of_insn prog addr =
 let asm_addr_to_bil bh get_exec addr =
   let (ir, na) as v =
     (try (Disasm.disasm_instr bh.arch get_exec addr)
-     with Disasm_i386.Disasm_i386_exception s ->
+     with Disasm_exc.DisasmException s ->
        Printf.eprintf "BAP unknown disasm_instr %Lx: %s" addr s;
        Printf.eprintf "disasm_instr %Lx: %s" addr s;
        raise Disasm.Unimplemented

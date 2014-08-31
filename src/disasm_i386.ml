@@ -51,8 +51,6 @@ let compute_segment_bases = ref true
 
 (* type segment = CS | SS | DS | ES | FS | GS *)
 
-exception Disasm_i386_exception of string
-
 type binopf = Ast.exp -> Ast.exp -> Ast.exp
 
 type order = Low | High
@@ -251,7 +249,7 @@ type prefix = {
 }
 
 (** disfailwith is a non-fatal disassembly exception. *)
-let disfailwith s = raise (Disasm_i386_exception s)
+let disfailwith s = raise (Disasm_exc.DisasmException s)
 
 let unimplemented s  = disfailwith ("disasm_i386: unimplemented feature: "^s)
 
@@ -2846,6 +2844,6 @@ let disasm_instr g addr =
   let (_, ss, pref) =  parse_prefixes pref op in
   let ir = ToIR.to_ir addr na ss pref op in
   let asm =
-    try Some(ToStr.to_string pref op) with Disasm_i386_exception _ -> None
+    try Some(ToStr.to_string pref op) with Disasm_exc.DisasmException _ -> None
   in
   (ToIR.add_labels ?asm addr ir, na)
