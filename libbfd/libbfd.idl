@@ -20,17 +20,19 @@ import "libbfd/bfdarch.idl";
 typedef [abstract,ptr] struct bfd* bfdp;
 typedef [abstract,ptr] struct disassemble_info* disasp;
 
-bfdp new_bfd( [in,string] const char* filename,
-              [in] enum architecture arch );
+bfdp new_bfd_from_buf( [in] enum architecture arch );
+bfdp new_bfd_from_file( [in,string] const char* filename );
 
-boolean delete_bfd( bfdp abfd );
+void delete_bfd( bfdp abfd );
 
-disasp new_disasm_info( [in] bfdp abfd,
-                        [in] char buffer[],
-                        [in] int len,
-                        [in] unsigned __int64 addr );
+disasp new_disasm_info( [in] bfdp abfd );
 
 void delete_disasm_info( disasp di );
+
+void update_disasm_info( [in] disasp di,
+                         [in] char buffer[],
+                         [in] int len,
+                         [in] unsigned __int64 addr );
 
 [string] char* disasm( [in] bfdp abfd,
                        [in] disasp di,

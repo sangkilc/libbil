@@ -19,6 +19,10 @@ open Bil
 
 let _ =
   (* FIXME *)
-  let p = of_bytesequence [|'\x31';'\xc0';'\x90'|] Bfdarch.Arch_i386 0L in
-  print_program p
+  let bh = bil_open ~arch:Bfdarch.Arch_i386 None in
+  let p = of_bytesequence bh [|'\xb9'; '\x00'; '\x45'; '\x41'; '\x00'|] 100L in
+  print_program p;
+  let p = of_bytesequence bh [|'\x31';'\xc0';'\x90'|] 0L in
+  print_program p;
+  bil_close bh
 

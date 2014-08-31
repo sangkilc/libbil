@@ -19,31 +19,24 @@ open Ast
 open Type
 open Libbfd
 
-type asmir_prog =
+type asmir_handle =
   {
+    arch     : Bfdarch.architecture;
     bfdp     : bfdp;
     disasp   : disasp;
   }
 
-let byte_insn_to_asmp arch addr bytes =
-  let bfdp = new_bfd "/dev/null" arch in
+let update_disasm_buf bh bytes addr =
   let len = Array.length bytes in
-  {
-    bfdp = bfdp;
-    disasp = new_disasm_info bfdp bytes len addr;
-  }
+  update_disasm_info bh.disasp bytes len addr;
+  bh
 
 let string_of_insn prog addr =
   disasm prog.bfdp prog.disasp addr
 
-let asmir_close prog =
-  delete_disasm_info prog.disasp;
-  if delete_bfd prog.bfdp then ()
-  else failwith "failed to close bfd handle"
-
-let asm_addr_to_bil prog arch get_exec addr =
+let asm_addr_to_bil bh get_exec addr =
   let (ir, na) as v =
-    (try (Disasm.disasm_instr arch get_exec addr)
+    (try (Disasm.disasm_instr bh.arch get_exec addr)
      with Disasm_i386.Disasm_i386_exception s ->
        Printf.eprintf "BAP unknown disasm_instr %Lx: %s" addr s;
        Printf.eprintf "disasm_instr %Lx: %s" addr s;
@@ -52,21 +45,36 @@ let asm_addr_to_bil prog arch get_exec addr =
   in
   (match ir with
     | Label (l, [])::rest ->
-        (Label (l, [Asm (string_of_insn prog addr)])::rest, na)
+        (Label (l, [Asm (string_of_insn bh addr)])::rest, na)
     | _ -> v)
 
-let byte_sequence_to_bil bytes arch addr =
-  let prog = byte_insn_to_asmp arch addr bytes in
+let byte_sequence_to_bil bh bytes addr =
+  let bh = update_disasm_buf bh bytes addr in
   let len = Array.length bytes in
   let end_addr = Int64.add addr (Int64.of_int len) in
   let get_exec a = bytes.(Int64.to_int (Int64.sub a addr)) in
   let rec read_all acc cur_addr =
     if cur_addr >= end_addr then List.rev acc
     else
-      let prog, next = asm_addr_to_bil prog arch get_exec cur_addr in
+      let prog, next = asm_addr_to_bil bh get_exec cur_addr in
       read_all (prog::acc) next
   in
-  let il = read_all [] addr in
-  asmir_close prog;
-  il
+  read_all [] addr
+
+let asmir_open ?arch:(arch=Bfdarch.Arch_i386) file =
+  let bfdp =
+    match file with
+      | Some file -> new_bfd_from_file file
+      | None -> new_bfd_from_buf arch
+  in
+  let disasp = new_disasm_info bfdp in
+  {
+    arch = arch;
+    bfdp = bfdp;
+    disasp = disasp
+  }
+
+let asmir_close handle =
+  delete_disasm_info handle.disasp;
+  delete_bfd handle.bfdp
 

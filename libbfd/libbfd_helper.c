@@ -25,6 +25,9 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 #include <string.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <malloc.h>
+
+#define DEFAULT_TARGET    "i686-pc-linux-gnu"
 
 void error_exit( const char* msg )
 {
@@ -35,23 +38,38 @@ void error_exit( const char* msg )
 bfdp new_bfd( const char* filename, int arch )
 {
     enum bfd_architecture _arch = (enum bfd_architecture) arch;
-    bfdp p = bfd_openr( filename, NULL );
+    bfdp p = bfd_openr( filename, DEFAULT_TARGET );
     if ( !p ) error_exit( "failure: bfd_openr" );
 
-
-    bfd_set_arch_info( p, bfd_lookup_arch(_arch, 0) );
-    return p;
+    if ( _arch == bfd_arch_unknown ) {
+        if ( bfd_check_format( p, bfd_archive ) ) {
+            // TODO: add archive handling code
+            error_exit( "currently not supported." );
+        }
+        return p;
+    } else {
+        bfd_set_arch_info( p, bfd_lookup_arch(_arch, 0) );
+        return p;
+    }
 }
 
-int delete_bfd( bfdp abfd )
+bfdp new_bfd_from_buf( int arch )
 {
-    return (int) bfd_close_all_done( abfd );
+    return new_bfd( "/dev/null", arch );
 }
 
-disasp new_disasm_info( bfdp abfd,
-                        char* buffer,
-                        int len,
-                        unsigned long long addr )
+bfdp new_bfd_from_file( const char* filename )
+{
+    return new_bfd( filename, bfd_arch_unknown );
+}
+
+void delete_bfd( bfdp abfd )
+{
+    if ( bfd_close_all_done( abfd ) == TRUE ) return;
+    else error_exit( "failed to close with bfd_close_all_done" );
+}
+
+disasp new_disasm_info( bfdp abfd )
 {
     struct disassemble_info *di =
       (struct disassemble_info *) malloc( sizeof(struct disassemble_info) );
@@ -66,6 +84,8 @@ disasp new_disasm_info( bfdp abfd,
     di->octets_per_byte = bfd_octets_per_byte( abfd );
     di->disassembler_needs_relocs = FALSE;
 
+    di->buffer = NULL;
+
     if ( bfd_big_endian( abfd ) )
         di->display_endian = di->endian = BFD_ENDIAN_BIG;
     else if ( bfd_little_endian ( abfd ) )
@@ -73,7 +93,22 @@ disasp new_disasm_info( bfdp abfd,
 
     disassemble_init_for_target( di );
 
-    di->buffer = (bfd_byte*) malloc( len );
+    return di;
+}
+
+void update_disasm_info( disasp di,
+                         char* buffer,
+                         int len,
+                         unsigned long long addr )
+{
+    bfd_byte* aux;
+
+    if ( malloc_usable_size( di->buffer ) < len ) {
+        aux = (bfd_byte*) realloc( di->buffer, len );
+        if ( !aux ) error_exit( "update_disasm_info.realloc failed" );
+        di->buffer = aux;
+    }
+
     di->buffer_vma = (bfd_vma) addr;
     di->buffer_length = len;
     di->section = NULL;
@@ -81,8 +116,6 @@ disasp new_disasm_info( bfdp abfd,
     if ( !di->buffer )
         error_exit( "failed to allocate disassemble_info.buffer" );
     memcpy( di->buffer, buffer, len );
-
-    return di;
 }
 
 void delete_disasm_info( disasp di )
@@ -108,12 +141,18 @@ int bprintf( struct bprintf_buffer *dest, const char *fmt, ... )
     va_start(ap, fmt);
     ret = vsnprintf(dest->end, size_left, fmt, ap);
     va_end(ap);
-    if (ret >= size_left) {
-        // we seem to need to call va_start again... is this legal?
-        dest->size = dest->size+ret+1-size_left;
-        char *str = (char*)realloc( dest->str, dest->size );
+    if ( ret >= size_left ) {
+        char *str;
 
-        assert( str ); // this code is full of xalloc anyways...
+        // we seem to need to call va_start again... is this legal?
+        dest->size = dest->size + ret + 1 - size_left;
+
+        if ( malloc_usable_size( dest->str ) < dest->size ) {
+            str = (char*) realloc( dest->str, dest->size );
+            if ( !str ) error_exit( "bprintf.realloc failed" );
+        } else {
+            str = dest->str;
+        }
 
         dest->end = str + (dest->end - dest->str);
         dest->str = str;
@@ -121,8 +160,10 @@ int bprintf( struct bprintf_buffer *dest, const char *fmt, ... )
         va_start(ap, fmt);
         ret = vsnprintf( dest->end, size_left, fmt, ap );
         va_end(ap);
-        assert(ret == size_left-1 && ret > 0);
+
+        assert( ret == size_left-1 && ret > 0 );
     }
+
     dest->end += ret;
     return ret;
 }

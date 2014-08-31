@@ -18,8 +18,17 @@
 open Disasm
 open Asmir
 
-let of_bytesequence bytes arch addr =
-  byte_sequence_to_bil bytes arch addr
+(* BIL type *)
+type t = asmir_handle
+
+let bil_open ?arch:(arch=Bfdarch.Arch_i386) file =
+  asmir_open ~arch:arch file
+
+let bil_close bh =
+  asmir_close bh
+
+let of_bytesequence bh bytes addr =
+  byte_sequence_to_bil bh bytes addr
 
 let print_program prog =
   List.iter (fun instr ->
