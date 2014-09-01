@@ -75,6 +75,7 @@ struct bfd* new_bfd_internal( const char* filename, int arch )
             return p;
         }
         error_exit( "failed to load the given file" );
+        return NULL; /* this will never be called */
     } else {
         bfd_set_arch_info( p, bfd_lookup_arch(_arch, 0) );
         return p;
