@@ -140,10 +140,14 @@ let _ = dispatch begin function
           "libbfd/bfdarch_stubs.o";
         ];
 
+      dep ["ocaml"; "link"; "bil_link"]
+        [
+          "libbfd/libbfd_helper.o";
+        ];
+
       (* linking rule *)
       flag ["ocaml"; "link"; "bil_link"]
         (S[
-          A"libbfd/libbfd_helper.o";
           A"libbfd/libbfd_stubs.o";
           A"libbfd/bfdarch_stubs.o";
           A"-cclib"; A"-lbfd";
