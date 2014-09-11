@@ -15,7 +15,7 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 */
 
-#include "libbfd.h"
+#include "bfdwrap.h"
 
 #include <bfd.h>
 #include <dis-asm.h>

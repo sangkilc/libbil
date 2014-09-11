@@ -16,7 +16,7 @@
 OCAMLBUILD=ocamlbuild
 
 all: depcheck libbfd/libbfd.idl
-	$(OCAMLBUILD) -Is src,libbfd -Xs buildtools bil.cmxa toil.native
+	$(OCAMLBUILD) -Is src,libbfd -Xs buildtools bil.cmxa bil.cma toil.native
 
 clean: depcheck
 	$(OCAMLBUILD) -clean
@@ -38,4 +38,18 @@ libbfd/bfdarch.idl:
 		| sed 's,enum bfd_architecture,enum architecture,' \
 		  > libbfd/bfdarch.idl
 
-.PHONY: all clean depcheck
+install: depcheck all
+	ocamlfind install libbil META \
+		_build/src/bil.a \
+		_build/src/bil.cmxa \
+		_build/src/libBil.cmi \
+		_build/src/libBil.mli \
+		_build/src/ast.cmi \
+		_build/src/type.cmi \
+		_build/src/type.mli \
+		_build/dllbfdarch_stubs.so \
+		_build/libbfdarch_stubs.a \
+		_build/dllbfdwrap_stubs.so \
+		_build/libbfdwrap_stubs.a
+
+.PHONY: all clean depcheck install

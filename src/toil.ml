@@ -15,7 +15,7 @@
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 *)
 
-open Bil
+open LibBil
 
 type load_method =
   | LoadBytes (* just consider the file as a byte sequence *)
@@ -24,14 +24,14 @@ type load_method =
 let current_method = ref LoadBytes
 
 let load_bytes file =
-  let bh = bil_open ~arch:Bfdarch.Arch_i386 None in
+  let bh = bil_open ~arch:I386 None in
   let bytes = Util.load_file file in
   let p = of_bytesequence bh bytes 0L in
   print_program p;
   bil_close bh
 
 let load_exec file =
-  let bh = bil_open ~arch:Bfdarch.Arch_i386 (Some file) in
+  let bh = bil_open ~arch:I386 (Some file) in
   let entry = entry_point bh in
   let p, next = of_addr bh entry in
   print_program [p];

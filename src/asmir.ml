@@ -17,7 +17,7 @@
 
 open Ast
 open Type
-open Libbfd
+open Bfdwrap
 
 module IntervalTree = Map.Make(struct
   type t = int64 * int64

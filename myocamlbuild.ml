@@ -65,7 +65,7 @@ let _ = dispatch begin function
          "pkg_batteries";
         ];
 
-      tag_file "libbfd/libbfd_stubs.c" ["stubs"];
+      tag_file "libbfd/bfdwrap_stubs.c" ["stubs"];
       tag_file "libbfd/bfdarch_stubs.c" ["stubs"];
       tag_file "src/toil.native" ["bil_link"];
 
@@ -113,8 +113,6 @@ let _ = dispatch begin function
         (S[A"-g"]);
       flag ["ocaml"; "compile"; "native"]
         (S[A"-inline";A"10"]);
-      flag ["ocaml"; "link"; "native"]
-        (S[A"-inline";A"10"]);
 
       (* c stub generated from camlidl *)
       flag ["c"; "compile"; "stubs"]
@@ -132,20 +130,17 @@ let _ = dispatch begin function
       (* compile dependencies *)
       dep ["ocaml"; "compile"]
         [
-          "libbfd/bfdarch.ml";
-          "libbfd/libbfd.ml";
-          "libbfd/libbfd_helper.o";
-          "libbfd/libbfd_helper.c";
-          "libbfd/libbfd_stubs.o";
-          "libbfd/bfdarch_stubs.o";
+          "libbfdarch_stubs.a";
+          "libbfdwrap_stubs.a";
         ];
 
       (* linking rule *)
-      flag ["ocaml"; "link"; "bil_link"]
+      flag ["ocaml"; "link"; "native"]
         (S[
-          A"libbfd/libbfd_helper.o";
-          A"libbfd/libbfd_stubs.o";
-          A"libbfd/bfdarch_stubs.o";
+          A"-inline"; A"10";
+          A"-cclib"; A"-L.";
+          A"-cclib"; A"-lbfdwrap_stubs";
+          A"-cclib"; A"-lbfdarch_stubs";
           A"-cclib"; A"-lbfd";
           A"-cclib"; A"-lopcodes";
           A"-cclib"; A("-L"^ocamlpath^"/camlidl");
