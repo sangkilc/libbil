@@ -79,7 +79,6 @@ let _ = dispatch begin function
 
       tag_file "libbfd/bfdwrap_stubs.c" ["stubs"];
       tag_file "libbfd/bfdarch_stubs.c" ["stubs"];
-      tag_file "src/toil.native" ["bil_link"];
 
   | After_rules ->
 
@@ -144,11 +143,6 @@ let _ = dispatch begin function
         [
           "libbfdarch_stubs.a";
           "libbfdwrap_stubs.a";
-        ];
-
-      dep ["ocaml"; "link"; "bil_link"]
-        [
-          "libbfd/libbfd_helper.o";
         ];
 
       (* linking rule *)
