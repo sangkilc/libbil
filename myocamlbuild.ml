@@ -1,4 +1,16 @@
-(* ocamlbuild script *)
+(** ocamlbuild script *)
+(*
+Copyright (c) 2014, Sang Kil Cha
+All rights reserved.
+This software is free software; you can redistribute it and/or
+modify it under the terms of the GNU Library General Public
+License version 2, with the special exception on linking
+described in file LICENSE.
+
+This software is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+*)
 
 open Ocamlbuild_plugin
 open Ocamlbuild_pack
@@ -132,6 +144,11 @@ let _ = dispatch begin function
         [
           "libbfdarch_stubs.a";
           "libbfdwrap_stubs.a";
+        ];
+
+      dep ["ocaml"; "link"; "bil_link"]
+        [
+          "libbfd/libbfd_helper.o";
         ];
 
       (* linking rule *)
