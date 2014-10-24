@@ -18,18 +18,13 @@
 (** libBIL handle *)
 type t
 
-(** libBIL architecture *)
-type arch =
-  | I386
-  | Amd64
-
-val bil_open : ?arch:arch -> string option -> t
+val bil_open : ?arch:Arch.arch -> string option -> t
 
 val bil_close : t -> unit
 
 val of_bytesequence : t -> string -> Type.addr -> Ast.stmt list list
 
-val of_addr : t -> Type.addr -> Ast.stmt list * int64
+val of_addr : t -> Type.addr -> Ast.stmt list * Type.addr
 
 val entry_point : t -> int64
 

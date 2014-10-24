@@ -17,21 +17,13 @@
 
 open Disasm
 open Asmir
+open Arch
 
 (* BIL type *)
 type t = asmir_handle
 
-type arch =
-  | I386
-  | Amd64
-
-let to_bfdarch = function
-  | I386 -> Bfdarch.Arch_i386
-  | Amd64 -> Bfdarch.Arch_ia64
-
-let bil_open ?arch:(arch=I386) file =
-  let arch = to_bfdarch arch in
-  asmir_open ~arch:arch file
+let bil_open ?arch:(arch=X86_32) file =
+  asmir_open arch file
 
 let bil_close bh =
   asmir_close bh

@@ -96,19 +96,18 @@ let ( $/* ) a b = binop SDIVIDE a b
 let cast ct tnew = function
   | Int(i,t) -> let (i',t') = Arithmetic.cast ct (i,t) tnew in
                 Int(i',t')
+  | e when Typecheck.infer_ast e = tnew -> e
   | e -> Cast(ct, tnew, e)
 
 let cast_low = cast CAST_LOW
 let cast_high = cast CAST_HIGH
 let cast_signed = cast CAST_SIGNED
 let rec cast_unsigned tnew = function
-  | Int(i,t) -> let (i',t') = Arithmetic.cast CAST_UNSIGNED (i,t) tnew in
-                Int(i',t')
   | Cast(CAST_UNSIGNED, Reg t', e) when Arithmetic.bits_of_width tnew >= t' ->
     (* Recurse, since we might be able to simplify e further now *)
     cast_unsigned tnew e
   | e ->
-    Cast(CAST_UNSIGNED, tnew, e)
+    cast CAST_UNSIGNED tnew e
 
 let exp_int i bits = Int(i, Reg bits)
 let it i t = Int(biconst i, t)
@@ -131,18 +130,18 @@ let exp_ite ?t b e1 e2 =
 
 let parse_ite = function
   | BinOp(OR,
-          BinOp(AND, Cast(CAST_SIGNED, _, b1), e1),
-          BinOp(AND, Cast(CAST_SIGNED, _, UnOp(NOT, b2)), e2)
+    BinOp(AND, Cast(CAST_SIGNED, _, b1), e1),
+    BinOp(AND, Cast(CAST_SIGNED, _, UnOp(NOT, b2)), e2)
   )
   | BinOp(OR,
-          BinOp(AND, b1, e1),
-          BinOp(AND, UnOp(NOT, b2), e2)
+    BinOp(AND, b1, e1),
+    BinOp(AND, UnOp(NOT, b2), e2)
   ) when full_exp_eq b1 b2 && Typecheck.infer_ast b1 = Reg(1) ->
     Some(b1, e1, e2)
       (* In case one branch is optimized away *)
   | BinOp(AND,
-          Cast(CAST_SIGNED, nt, b1),
-          e1) when Typecheck.infer_ast b1 = Reg(1) ->
+    Cast(CAST_SIGNED, nt, b1),
+    e1) when Typecheck.infer_ast b1 = Reg(1) ->
     Some(b1, e1, Int(zero_big_int, nt))
   | _ -> None
 
@@ -286,6 +285,10 @@ let last_meaningful_stmt p =
 let min_symbolic ~signed e1 e2 =
   let bop = if signed then SLT else LT in
   exp_ite (binop bop e1 e2) e1 e2
+
+let max_symbolic ~signed e1 e2 =
+  let bop = if signed then SLT else LT in
+  exp_ite (unop NOT (binop bop e1 e2)) e1 e2
 
 (* Extract the nth least significant element of type t from e,
    starting with zero. n is a non-negative integer. *)

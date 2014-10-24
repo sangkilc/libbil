@@ -22,8 +22,8 @@ let rec typ_to_string = function
   | Reg 32 -> "u32"
   | Reg 64 -> "u64"
   | Reg n -> Printf.sprintf "u%u" n
-  | TMem t -> "?" ^ typ_to_string t
-  | Array(idx,e) -> typ_to_string e ^ "?" ^ typ_to_string idx
+  | TMem (idx,e) -> typ_to_string idx ^ "?" ^ typ_to_string e
+  | Array(idx,e) -> typ_to_string idx ^ "!" ^ typ_to_string e
 
 
 let ct_to_string = function
@@ -85,11 +85,19 @@ class pp ft =
   let pp = F.pp_print_string ft
   and pc = F.pp_print_char ft
   and space = Format.pp_print_space ft
+  and break () = Format.pp_print_break ft 0 1
   and printf = Format.fprintf ft
-  and opn  = F.pp_open_box ft
+  and opn  = F.pp_open_hovbox ft
   and cls = F.pp_close_box ft in
   let comma () = pp ","; space() in
   let vctx = (VH.create 100, Hashtbl.create 100) in
+  let commalist f = function
+    | [] -> ()
+    | e::[] -> f e
+    | hd::others ->
+      f hd;
+      List.iter (fun e -> pc ','; space (); f e) others
+  in
 object (self)
 
 
@@ -99,6 +107,8 @@ object (self)
     else
       pp (var_to_string ~ctx:vctx v)
 
+  method vars = commalist self#var
+
   method typ t = pp (typ_to_string t)
 
 
@@ -106,16 +116,18 @@ object (self)
 
   method attr = function
     | Asm s -> pp "@asm \""; pp s; pp "\""
-    | Address a -> printf "@address \"0x%Lx\"" a;
+    | Address a -> printf "@address \"0x%s\"" (Util.big_int_to_hex a);
+    | Target l -> pp "@target \""; self#label l; pp "\""
     | Liveout -> pp "@set \"liveout\""
     | StrAttr s -> pp "@str \""; pp s; pc '\"'
+    | NamedStrAttr (n, s) -> pp "@namedstr \""; pp n; pc '\"'; space (); pc '\"'; pp s; pc '\"'
     | Context {name=s; mem=mem; value=v; index=i; t=Reg bits; usage=u; taint=Taint t} ->
       let ustr = match u with
         | RD -> "rd" | RW -> "rw" | WR -> "wr"
       in
       let ts = string_of_int t in
       (*if t = Taint then "tainted" else "untainted" in*)
-      let ind = if mem then "[0x"^(Int64.format "%Lx" i)^"]" else "" in
+      let ind = if mem then "[0x"^(Util.big_int_to_hex i)^"]" else "" in
       pp "@context "; pc '"'; pp (s^ind); pc '"'; pp (" = 0x"^(Util.big_int_to_hex v)^ ", " ^ ts
                                                       ^", u"
                                                       ^ (string_of_int bits)
@@ -128,10 +140,28 @@ object (self)
     | Pos _ -> () (* ignore position attrs *)
     | InitRO -> pp "@set \"initro\""
     | Synthetic -> pp "@set \"synthetic\""
+    | SpecialBlock -> pp "@set \"specialblock\""
+
+  method du {Var.defs; Var.uses} =
+    (match defs with
+    | _::_ ->
+      space ();
+      pp "defs";
+      space ();
+      self#vars defs
+    | _ -> ());
+
+    (match uses with
+    | _::_ ->
+      space ();
+      pp "uses";
+      space ();
+      self#vars uses
+    | _ -> ())
 
   method label = function
     | Name s -> pp "label "; pp s
-    | Addr x -> printf "addr 0x%Lx" x
+    | Addr x -> printf "addr 0x%s" (Util.big_int_to_hex x)
 
   method int i t =
     let (is, i) = Arithmetic.to_sbig_int (i,t), Arithmetic.to_big_int (i,t) in
@@ -225,8 +255,10 @@ object (self)
      | Ast.Concat(le, re) ->
          pp "concat:";
          pc '[';
+         break ();
          self#ast_exp le;
          pp "][";
+         break ();
          self#ast_exp re;
          pc ']'
      | Ast.BinOp(b,x,y) ->
@@ -310,10 +342,13 @@ object (self)
         pp s;
         pp "*/";
         self#attrs a
-    | Ast.Special(s,a) ->
-        pp "special \"";
+    | Ast.Special(s,du,a) ->
+        pp "special";
+        BatOption.may self#du du;
+        space ();
+        pc '"';
         pp s;
-        pp "\"";
+        pc '"';
         self#attrs a);
     cls();
 
@@ -324,77 +359,72 @@ object (self)
     cls();
 
 
-  method ssa_value = function
-    | Ssa.Int(i,t) ->
-        self#int i t
-    | Ssa.Var v ->
-        self#var v
-    | Ssa.Lab lab ->
-        pc '"'; pp lab; pc '"'
-
   method ssa_endian = function
     | Ssa.Int(bi, Reg 1) when bi_is_zero bi -> pp "e_little";
     | Ssa.Int(bi, Reg 1) when bi_is_one bi -> pp "e_big"
-    | x -> self#ssa_value x
+    | x -> self#ssa_exp x
 
   method ssa_exp e =
     opn 0;
     (match e with
      | Ssa.Load(arr,idx,edn, t) ->
-         self#ssa_value arr;
-         pp "["; self#ssa_value idx; comma(); self#ssa_endian edn; pp "]";
-         (* FIXME: check type of arr *)
+         self#ssa_exp arr;
+         pp "["; self#ssa_exp idx; comma(); self#ssa_endian edn; pp "]";
          pp ":"; self#typ t;
      | Ssa.Store(arr,idx,vl, edn, t) ->
-         self#ssa_value arr;
+         self#ssa_exp arr;
          pp " with"; space();
-         pp "["; self#ssa_value idx;
+         pp "["; self#ssa_exp idx;
          comma(); self#ssa_endian edn;
          pp "]:"; self#typ t;
          pp " ="; space();
-         self#ssa_value vl
+         self#ssa_exp vl
+     | Ssa.BinOp(b, x, y) ->
+         self#ssa_exp x;
+         pp " "; pp (binop_to_string b); space();
+         self#ssa_exp y;
+     | Ssa.UnOp(u, x) ->
+         pp (unop_to_string u); self#ssa_exp x;
+     | Ssa.Var v ->
+         self#var v
+     | Ssa.Lab lab ->
+         pc '"'; pp lab; pc '"'
+     | Ssa.Int(i,t) ->
+         self#int i t
+     | Ssa.Cast(ct,t,v) ->
+         pp (ct_to_string ct);
+         pp ":"; self#typ t;
+         pp "("; self#ssa_exp v; pp ")"
+     | Ssa.Unknown(s,t) ->
+         pp "unknown \""; pp s; pp "\":"; self#typ t
      | Ssa.Ite(c, x, y) ->
          pp "if";
          space ();
-         self#ssa_value c;
+         self#ssa_exp c;
          space ();
          pp "then";
          space ();
-         self#ssa_value x;
+         self#ssa_exp x;
          space ();
          pp "else";
          space ();
-         self#ssa_value y
+         self#ssa_exp y
      | Ssa.Extract(h, l, e) ->
          pp "extract:";
          pp (string_of_big_int h);
          pc ':';
          pp (string_of_big_int l);
          pp ":[";
-         self#ssa_value e;
+         self#ssa_exp e;
          pc ']';
      | Ssa.Concat(lv, rv) ->
          pp "concat:[";
-         self#ssa_value lv;
+         self#ssa_exp lv;
          pp "][";
-         self#ssa_value rv;
+         self#ssa_exp rv;
          pc ']'
-     | Ssa.BinOp(b, x, y) ->
-         self#ssa_value x;
-         pp " "; pp (binop_to_string b); space();
-         self#ssa_value y;
-     | Ssa.UnOp(u, x) ->
-         pp (unop_to_string u); self#ssa_value x;
-     | Ssa.Val v ->
-         self#ssa_value v
-     | Ssa.Cast(ct,t,v) ->
-         pp (ct_to_string ct);
-         pp ":"; self#typ t;
-         pp "("; self#ssa_value v; pp ")"
-     | Ssa.Unknown(s,t) ->
-         pp "unknown \""; pp s; pp "\":"; self#typ t
      | Ssa.Phi [] ->
-         pp "(ERROR: Empty phi)"
+         failwith "Cannot print empty phi expression"
      | Ssa.Phi(x::xs) ->
          pp "phi(";
          self#var x;
@@ -413,38 +443,45 @@ object (self)
         self#attrs a
     | Ssa.Jmp(v,a) ->
         pp "jmp ";
-        self#ssa_value v;
+        self#ssa_exp v;
         self#attrs a
     | Ssa.CJmp(c,t,f,a) ->
         pp "cjmp"; space();
-        self#ssa_value c; comma();
-        self#ssa_value t; comma();
-        self#ssa_value f;
+        self#ssa_exp c; comma();
+        self#ssa_exp t; comma();
+        self#ssa_exp f;
         self#attrs a
     | Ssa.Label(l,a) ->
         (match l with
          | Name s -> pp "label "; pp s
-         | Addr x -> printf "addr 0x%Lx" x
+         | Addr x -> printf "addr 0x%s" (Util.big_int_to_hex x)
         );
         self#attrs a
     | Ssa.Halt(v,a) ->
         pp "halt ";
-        self#ssa_value v;
+        self#ssa_exp v;
         self#attrs a
     | Ssa.Assert(v,a) ->
         pp "assert ";
-        self#ssa_value v;
+        self#ssa_exp v;
         self#attrs a
     | Ssa.Assume(v,a) ->
         pp "assume ";
-        self#ssa_value v;
+        self#ssa_exp v;
         self#attrs a
     | Ssa.Comment(s,a) ->
         pp "/*";
         pp s;
         pp "*/";
         self#attrs a
-    );
+    | Ssa.Special(s,du,a) ->
+        pp "special";
+        self#du du;
+        space ();
+        pc '"';
+        pp s;
+        pc '"';
+        self#attrs a);
     cls()
 
   method ssa_stmts stmts =
@@ -497,20 +534,19 @@ let make_varctx () =
 
 (* These functions will not remember variable names across separate
    invocations *)
-let value_to_string = pp2string (fun p -> p#ssa_value)
 let attr_to_string = pp2string (fun p -> p#attr)
 let label_to_string = pp2string (fun p -> p#label)
 let ssa_exp_to_string = pp2string (fun p -> p#ssa_exp)
 let ssa_stmt_to_string = pp2string (fun p -> p#ssa_stmt)
 let ast_exp_to_string = pp2string (fun p -> p#ast_exp ~prec:0)
 let ast_stmt_to_string = pp2string (fun p -> p#ast_stmt)
+let ast_prog_to_string p = BatString.join "\n" (List.map ast_stmt_to_string p)
 
 (* These functions store variable names in the specified ctx
    argument. The ctx can be created by [make_varctx]
 
    XXX: Create pp.mli so that callers do not know type of ctx
 *)
-let value_to_string_in_varctx ctx = pp2string_with_pp ctx (fun p -> p#ssa_value)
 let label_to_string_in_varctx ctx = pp2string_with_pp ctx (fun p -> p#label)
 let ssa_exp_to_string_in_varctx ctx = pp2string_with_pp ctx (fun p -> p#ssa_exp)
 let ssa_stmt_to_string_in_varctx ctx = pp2string_with_pp ctx (fun p -> p#ssa_stmt)

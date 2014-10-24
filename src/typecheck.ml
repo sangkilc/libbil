@@ -10,19 +10,44 @@ exception TypeError of string
 
 let terror s = raise(TypeError s)
 
-(* returns true if t1 is a subtype of t2 *)
-let subt t1 t2 =
+(* returns true if t1 equals t2 *)
+let eq t1 t2 =
   t1 = t2
 
-let check_subt t1 t2 f =
-  if not(subt t1 t2) then
-    terror (Printf.sprintf f (Pp.typ_to_string t1) (Pp.typ_to_string t2))
+(* returns true if t1 is a multiple of t2 *)
+let mult t1 t2 = match t1, t2 with
+  | Reg x, Reg y -> x mod y = 0
+  (* Can we do anything else for memory types? *)
+  | x, y -> eq x y
+
+let check checkf errmsg t1 t2 =
+  if not (checkf t1 t2) then
+    terror (Printf.sprintf errmsg (Pp.typ_to_string t1) (Pp.typ_to_string t2))
+
+let check_eq t1 t2 f =
+  check eq f t1 t2
+
+let check_mult t1 t2 f =
+  check mult f t1 t2
+
+(* let check_eq t1 t2 f = *)
+(*   if not (eq t1 t2) then *)
+(*     terror (Printf.sprintf f (Pp.typ_to_string t1) (Pp.typ_to_string t2)) *)
 
 let is_integer_type = function
   | Reg _ -> true
   | TMem _ | Array _ -> false
 
 let is_mem_type t = not (is_integer_type t)
+
+let index_type_of = function
+  | TMem (it, _) | Array (it, _) -> it
+  | Reg _ -> invalid_arg "index_type_of"
+
+let value_type_of = function
+  | TMem (_, vt) -> vt
+  | Array (_, vt) -> vt
+  | Reg _ -> invalid_arg "value_type_of"
 
 let bits_of_width = function
   | Reg n -> n
@@ -108,13 +133,13 @@ let rec infer_ast_internal check e =
     if check then ignore(infer_ast_internal true e1);
     infer_ast_internal check e2
   | Load(arr,idx,endian, t) ->
-    if check then check_idx arr idx endian t;
+    if check then check_mem arr idx endian t;
     t
   | Store(arr,idx,vl, endian, t) ->
     if check then (
-      check_idx arr idx endian t;
+      check_mem arr idx endian t;
       let tv = infer_ast_internal true vl in
-      check_subt tv t "Can't store value with type %s as a %s";
+      check_eq tv t "Store of value with type %s performed using a Store of type %s";
     );
     infer_ast_internal false arr
 
@@ -134,7 +159,7 @@ and check_bool t =
   if t <> Reg 1 then
     terror (Printf.sprintf "Expected bool type, but got %s" (Pp.typ_to_string t))
 
-and check_idx arr idx endian t =
+and check_mem arr idx endian t =
   let ta = infer_ast_internal true arr
   and ti = infer_ast_internal true idx
   and te = infer_ast_internal true endian in
@@ -142,13 +167,47 @@ and check_idx arr idx endian t =
   if not(is_integer_type ti) then terror "Index must be a register type";
   match ta with
   | Array(i,e) ->
-      check_subt ti i "Index type not suitable for indexing into this array. Index has type %s, but array has type %s.";
-      check_subt t e "Can't get a %s from array of %s";
-  | TMem i -> check_subt ti i "Index type not suitable for indexing into this array. Index has type %s, but the array has type %s.";
-
+    check_eq ti i "Index type not suitable for indexing into this array. Index has type %s, but array has type %s.";
+    check_eq t e "Can't get/put a %s from array with element type of %s";
+  | TMem(i,e) ->
+    check_eq ti i "Index type not suitable for indexing into this array. Index has type %s, but the memory has type %s.";
+    check_mult t e "Can't get/put a %s from memory with element type of %s"
   | _ -> terror "Indexing only allowed from array or mem."
 
+and check_cjmp_direct e =
+  if Ast.lab_of_exp e = None then terror "Conditional jump targets must be direct (to a constant address or label)"
+
 let infer_ast = infer_ast_internal false
+
+let rec infer_ssa = function
+  | Ssa.Int(_,t) -> t
+  | Ssa.Var v -> Var.typ v
+  | Ssa.Lab _ ->
+    (* FIXME: no type for labels yet *)
+    reg_64
+  | Ssa.Load(_,_,_,t)
+  | Ssa.Cast(_,t,_)
+  | Ssa.Unknown(_,t)
+    -> t
+  | Ssa.BinOp((EQ|NEQ|LT|LE|SLT|SLE),_,_)
+    -> reg_1
+  | Ssa.Ite(_,v,_)
+  | Ssa.BinOp(_,v,_)
+  | Ssa.Store(v,_,_,_,_)
+  | Ssa.UnOp(_,v) ->
+      infer_ssa v
+  | Ssa.Extract(h, l, v) ->
+      let n = ((h -% l) +% bi1) in
+      assert(n >=% bi1);
+      Reg(int_of_big_int n)
+  | Ssa.Concat(lv, rv) ->
+      (match infer_ssa lv, infer_ssa rv with
+      | Reg(lt), Reg(rt) -> Reg(lt + rt)
+      | _ -> failwith "infer_ssa")
+  | Ssa.Phi(x::_)
+    -> Var.typ x
+  | Ssa.Phi []
+    -> failwith "Empty phi has no type"
 
 let typecheck_expression e = ignore(infer_ast_internal true e)
 
@@ -172,7 +231,9 @@ let typecheck_stmt =
       let t2t = infer_te t2 in
       check_bool et;
       check_reg t1t;
-      check_reg t2t
+      check_reg t2t;
+      check_cjmp_direct t1;
+      check_cjmp_direct t2
     | Halt(e, _) ->
       let et = infer_te e in
       (* Can we return a memory? Does this make sense? *)
@@ -186,5 +247,20 @@ let typecheck_stmt =
     | Special _ ->
       ()
 
-let typecheck_prog =
-  List.iter typecheck_stmt
+let typecheck_prog prog =
+  let last_label = ref None in
+  let is_asm = function
+    | Asm _ -> true
+    | _ -> false
+  in
+  let ts = function
+    | Label (_, attrs) as s when List.exists is_asm attrs -> last_label := Some s
+    | _ -> ()
+  in
+  List.iter (fun stmt -> ts stmt;
+    try typecheck_stmt stmt
+    with TypeError s ->
+      match !last_label with
+      | Some ls ->
+        raise (TypeError (s^"\nat "^Pp.ast_stmt_to_string ls))
+      | None -> raise (TypeError s)) prog

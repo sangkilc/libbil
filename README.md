@@ -8,7 +8,7 @@ is the intermediate language used in BAP. This library is to provide a
 standalone version of BIL, thus it only includes the essential part of the
 language in BAP.
 
-This project is forked off from [BAP](http://bap.ece.cmu.edu/) 0.7.
+This project is forked off from [BAP](http://bap.ece.cmu.edu/) 0.8.
 
 Dependency
 ----------

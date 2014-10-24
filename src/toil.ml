@@ -16,6 +16,7 @@
 *)
 
 open LibBil
+open Arch
 
 type load_method =
   | LoadBytes (* just consider the file as a byte sequence *)
@@ -24,16 +25,16 @@ type load_method =
 let current_method = ref LoadBytes
 
 let load_bytes file =
-  let bh = bil_open ~arch:I386 None in
+  let bh = bil_open ~arch:X86_32 None in
   let bytes = Util.load_file file in
-  let p = of_bytesequence bh bytes 0L in
+  let p = of_bytesequence bh bytes Big_int_Z.zero_big_int in
   print_program p;
   bil_close bh
 
 let load_exec file =
-  let bh = bil_open ~arch:I386 (Some file) in
+  let bh = bil_open ~arch:X86_32 (Some file) in
   let entry = entry_point bh in
-  let p, next = of_addr bh entry in
+  let p, next = of_addr bh (Big_int_Z.big_int_of_int64 entry) in
   print_program [p];
   bil_close bh
 

@@ -3,20 +3,27 @@
     @author Ivan Jager
 *)
 
-(** Addresses are 64-bit integers *)
-type addr = int64
+(** Addresses are big_ints *)
+type addr = Big_int_Z.big_int
 
 (** Labels are program locations that can be jumped to. *)
 type label =
   | Name of string (** For named labels*)
   | Addr of addr (** For addresses. Cast REG_type as unsigned when comparing. *)
 
-
 (** The IR type of a BAP expression *)
 type typ =
   | Reg of int (** an N-bit bitvector (use 1 for booleans). *)
-  | TMem of typ (** Memory of given index type *)
+  | TMem of typ * typ (** Memory of given index type, element type. *)
   | Array of typ * typ (** Array of index type, element type. *)
+
+val reg_1 : typ
+val reg_8 : typ
+val reg_16 : typ
+val reg_32 : typ
+val reg_64 : typ
+val reg_128 : typ
+val reg_256 : typ
 
 (** [Array] memories can only be updated or accessed in terms of
     their element type, which is usually [Reg 8].  [TMem] memories
@@ -86,15 +93,19 @@ type attribute =
   | Pos of pos  (** The position of a statement in the source file *)
   | Asm of string (** Assembly representation of the following IL code *)
   | Address of addr (** The address corresponding to lifted IL. *)
+  | Target of label (** An address this insn may jump to (esp. function specials) *)
   | Liveout (** Statement should be considered live by deadcode elimination *)
   | StrAttr of string (** Generic printable and parseable attribute *)
-  | Context of context         (** Information about the
-                                   instruction operands from a
-                                   trace. *)
+  | NamedStrAttr of string * string (** Generic printable and parseable attribute *)
+  | Context of context (** Information about the
+                           instruction operands from a
+                           trace. *)
   | ThreadId of int (** Executed by a specific thread *)
   | ExnAttr of exn (** Generic extensible attribute, but no parsing *)
   | InitRO (** The memory in this assignment is stored in the binary *)
   | Synthetic (** Operation was added by an analysis *)
+  | SpecialBlock (** Start of a special block *)
+
 type attributes = attribute list
 
 (** Visitors are a systematic method for exploring and changing

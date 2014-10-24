@@ -16,39 +16,41 @@
 *)
 
 open Ast
+open Arch
 open Type
+open Big_int_convenience
 open Bfdwrap
 
 module IntervalTree = Map.Make(struct
-  type t = int64 * int64
-  let compare (s1,e1) (s2,e2) =
-    if Int64.compare s1 s2 >= 0 && Int64.compare e1 e2 < 0 then 0
-    else if Int64.compare s1 s2 <= 0 && Int64.compare e1 e2 > 0 then 0
-    else if Int64.compare s1 s2 > 0 then 1
+  type t = string * addr * addr
+  let compare (_,s1,e1) (_,s2,e2) =
+    if Big_int_Z.compare_big_int s1 s2 >= 0 && Big_int_Z.compare_big_int e1 e2 < 0 then 0
+    else if Big_int_Z.compare_big_int s1 s2 <= 0 && Big_int_Z.compare_big_int e1 e2 > 0 then 0
+    else if Big_int_Z.compare_big_int s1 s2 > 0 then 1
     else -1
 end)
 
 type asmir_handle =
   {
-    arch     : Bfdarch.architecture;
+    arch     : arch;
     bhp      : bhp;
-    sections : (string * int64 * int64) IntervalTree.t;
+    sections : (string * addr * addr) IntervalTree.t;
   }
 
 let update_disasm_buf handle bytes addr =
   let len = String.length bytes in
-  update_disasm_info handle.bhp bytes len addr;
+  update_disasm_info handle.bhp bytes len (addr_to_int64 addr);
   handle
 
 let string_of_insn handle addr =
-  disasm handle addr
+  disasm handle (addr_to_int64 addr)
 
 let toil arch get_exec addr =
   try
     (Disasm.disasm_instr arch get_exec addr)
   with Disasm_exc.DisasmException s -> begin
-    Printf.eprintf "BAP unknown disasm_instr %Lx: %s" addr s;
-    Printf.eprintf "disasm_instr %Lx: %s" addr s;
+    Printf.eprintf "BAP unknown disasm_instr %s: %s" (~%addr) s;
+    Printf.eprintf "disasm_instr %s: %s" (~%addr) s;
     raise Disasm.Unimplemented
   end
 
@@ -63,11 +65,11 @@ let asm_addr_to_bil handle get_exec addr =
   let v = toil handle.arch get_exec addr in
   update_asm v handle.bhp addr
 
-let byte_sequence_to_bil handle bytes addr =
+let byte_sequence_to_bil handle bytes (addr:Type.addr) =
   let handle = update_disasm_buf handle bytes addr in
   let len = String.length bytes in
-  let end_addr = Int64.add addr (Int64.of_int len) in
-  let get_exec a = String.get bytes (Int64.to_int (Int64.sub a addr)) in
+  let end_addr = addr +% (Big_int_Z.big_int_of_int len) in
+  let get_exec a = String.get bytes (Big_int_Z.int_of_big_int (a -% addr)) in
   let rec read_all acc cur_addr =
     if cur_addr >= end_addr then List.rev acc
     else
@@ -77,30 +79,35 @@ let byte_sequence_to_bil handle bytes addr =
   read_all [] addr
 
 let find_section addr sections =
-  IntervalTree.find (addr, addr) sections
+  IntervalTree.find ("", addr, addr) sections
 
-let instr_to_bil handle addr =
+let instr_to_bil handle (addr:Type.addr) =
   let data, s_addr, _e_addr = find_section addr handle.sections in
   let get_exec a =
-    let offset = Int64.to_int (Int64.sub a s_addr) in
+    let offset = Big_int_Z.int_of_big_int (a -% s_addr) in
     String.get data offset
   in
   let (il, next_addr) as v = toil handle.arch get_exec addr in
-  let offset = Int64.to_int (Int64.sub addr s_addr) in
-  let len = Int64.to_int (Int64.sub next_addr addr) in
+  let offset = Big_int_Z.int_of_big_int (addr -% s_addr) in
+  let len = Big_int_Z.int_of_big_int (next_addr -% addr) in
   let bytes = String.sub data offset len in
   let handle = update_disasm_buf handle bytes addr in
   update_asm v handle.bhp addr
 
-let asmir_open ?arch:(arch=Bfdarch.Arch_i386) file =
+let arch_to_bfd = function
+  | X86_32 -> Bfdarch.Arch_i386
+  | X86_64 -> Bfdarch.Arch_ia64
+
+let asmir_open arch file =
   let bhp =
     match file with
       | Some file -> new_bfd_from_file file
-      | None -> new_bfd_from_buf arch
+      | None -> new_bfd_from_buf (arch_to_bfd arch)
   in
   let sections =
-    List.fold_left (fun acc ((content, sa, ea) as tupl) ->
-      IntervalTree.add (sa, ea) tupl acc
+    List.fold_left (fun acc (content, sa, ea) ->
+      let e = content, biconst64 sa, biconst64 ea in
+      IntervalTree.add e e acc
     ) IntervalTree.empty (get_section_data bhp)
   in
   {

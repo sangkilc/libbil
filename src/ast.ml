@@ -9,6 +9,7 @@
 *)
 
 open Type
+open Var
 open Big_int_Z
 open Big_int_convenience
 
@@ -17,8 +18,8 @@ module List = struct include BatList end
 type var = Var.t
 
 type exp =
-  | Load of (exp * exp * exp * typ)  (** Load(arr,idx,endian, t) *)
-  | Store of (exp * exp * exp * exp * typ)  (** Store(arr,idx,val, endian, t) *)
+  | Load of (exp * exp * exp * typ)  (** Load(arr,idx,endian,t) *)
+  | Store of (exp * exp * exp * exp * typ)  (** Store(arr,idx,val, endian,t) *)
   | BinOp of (binop_type * exp * exp)
   | UnOp of (unop_type * exp)
   | Var of var
@@ -45,7 +46,7 @@ type stmt =
   | Assert of (exp * attrs)
   | Assume of (exp * attrs)
   | Comment of (string * attrs) (** A comment to be ignored *)
-  | Special of (string * attrs) (** A "special" statement. (does magic) *)
+  | Special of (string * defuse option * attrs) (** A "special" statement. (does magic) *)
 
 type program = stmt list
 
@@ -53,25 +54,27 @@ type program = stmt list
 
 (** Make an expression corresponding to the given label, for use as the
     target of a [Jmp]. *)
-let exp_of_lab = function
-  | Name s -> Lab s
-  | Addr a -> Int(big_int_of_int64 a, Reg 64)
+let exp_of_lab =
+  let re = Str.regexp "^pc_\\(.*\\)+" in
+  function
+    (* VEX style pc_0x1234 labels *)
+    | Name s when Str.string_match re s 0 ->
+      Int(Big_int_Z.big_int_of_string (Str.matched_group 1 s), Reg 64)
+    | Name s -> Lab s
+    | Addr a -> Int(a, Reg 64)
 
 (** If possible, make a label that would be refered to by the given
     expression. *)
-let lab_of_exp = function
-  | Lab s -> Some(Name s)
-  | Int(i, t) ->
-    Some(Addr(int64_of_big_int (Arithmetic.to_big_int (i,t))))
-  | _ -> None
-
-
-let reg_1 = Reg 1
-and reg_8 = Reg 8
-and reg_16 = Reg 16
-and reg_32 = Reg 32
-and reg_64 = Reg 64
-and reg_128 = Reg 128
+let lab_of_exp =
+  let re = Str.regexp "^pc_\\(.*\\)+" in
+  function
+    (* VEX style pc_0x1234 labels *)
+    | Lab s when Str.string_match re s 0 ->
+      Some(Addr(Big_int_Z.big_int_of_string (Str.matched_group 1 s)))
+    | Lab s -> Some(Name s)
+    | Int(i, t) ->
+      Some(Addr(Arithmetic.to_big_int (i,t)))
+    | _ -> None
 
 (** False constant. (If convenient, refer to this rather than building your own.) *)
 let exp_false = Int(bi0, reg_1)
@@ -103,21 +106,21 @@ let num_exp = function
   | Let _ -> 11
   | Unknown _ -> 12
 
-  (* Returns elist, tlist, btlist, utlist, vlist, slist, ilist, clist *)
-  let getargs = function
-    | Load(e1,e2,e3,t1) -> [e1;e2;e3], [t1], [], [], [], [], [], []
-    | Store(e1,e2,e3,e4,t1) -> [e1;e2;e3;e4], [t1], [], [], [], [], [], []
-    | Ite(e1,e2,e3) -> [e1;e2;e3], [], [], [], [], [], [], []
-    | Extract(h,l,e) -> [e], [], [], [], [], [], [h;l], []
-    | Concat(le, re) -> [le;re], [], [], [], [], [], [], []
-    | BinOp(bt,e1,e2) -> [e1;e2], [], [bt], [], [], [], [], []
-    | UnOp(ut,e1) -> [e1], [], [], [ut], [], [], [], []
-    | Var(v1) -> [], [], [], [], [v1], [], [], []
-    | Lab(s1) -> [], [], [], [], [], [s1], [], []
-    | Int(i1,t1) -> [], [t1], [], [], [], [], [i1], []
-    | Cast(c1,t1,e1) -> [e1], [t1], [], [], [], [], [], [c1]
-    | Let(v1,e1,e2) -> [e1;e2], [], [], [], [v1], [], [], []
-    | Unknown(s1,t1) -> [], [t1], [], [], [], [s1], [], []
+(* Returns elist, tlist, btlist, utlist, vlist, slist, ilist, clist *)
+let getargs = function
+  | Load(e1,e2,e3,t1) -> [e1;e2;e3], [t1], [], [], [], [], [], []
+  | Store(e1,e2,e3,e4,t1) -> [e1;e2;e3;e4], [t1], [], [], [], [], [], []
+  | Ite(e1,e2,e3) -> [e1;e2;e3], [], [], [], [], [], [], []
+  | Extract(h,l,e) -> [e], [], [], [], [], [], [h;l], []
+  | Concat(le, re) -> [le;re], [], [], [], [], [], [], []
+  | BinOp(bt,e1,e2) -> [e1;e2], [], [bt], [], [], [], [], []
+  | UnOp(ut,e1) -> [e1], [], [], [ut], [], [], [], []
+  | Var(v1) -> [], [], [], [], [v1], [], [], []
+  | Lab(s1) -> [], [], [], [], [], [s1], [], []
+  | Int(i1,t1) -> [], [t1], [], [], [], [], [i1], []
+  | Cast(c1,t1,e1) -> [e1], [t1], [], [], [], [], [], [c1]
+  | Let(v1,e1,e2) -> [e1;e2], [], [], [], [v1], [], [], []
+  | Unknown(s1,t1) -> [], [t1], [], [], [], [s1], [], []
 
 let quick_exp_eq e1 e2 =
   match e1, e2 with
@@ -175,7 +178,7 @@ let rec full_exp_eq e1 e2 = e1 = e2
 
 let (===) = full_exp_eq
 
-let rec compare_exp e1 e2 = compare e1 e2
+let compare_exp e1 e2 = Pervasives.compare e1 e2
   (* let c = compare (num_exp e1) (num_exp e2) in *)
   (* if c <> 0 then c else *)
   (*   let l1,l2,l3,l4,l5,l6,l7,l8 = getargs e1 in *)
@@ -224,9 +227,9 @@ let getargs_stmt = function
   | Halt(e,a)
   | Assert(e,a)
   | Assume(e,a) -> [e], [], [], [a], []
-  | Comment(s,a)
-  | Special(s,a) -> [], [], [], [a], [s]
-
+  | Special(s,Some {defs; uses},a) -> [], defs@uses, [], [a], [s]
+  | Special(s,None,a)
+  | Comment(s,a) -> [], [], [], [a], [s]
 (** quick_stmt_eq returns true if and only if the subexpressions in e1
     and e2 are *physically* equal. *)
 let quick_stmt_eq s1 s2 =
@@ -278,7 +281,7 @@ match s with
 | _ -> false
 
 let is_syscall = function
-  | Special(("syscall"|"int 80"), _) -> true
+  | Special(("syscall"|"int 0x80"), _, _) -> true
   | _ -> false
 
 let full_stmts_eq s1 s2 =
@@ -297,4 +300,4 @@ let get_attrs = function
   | Assert(_,a)
   | Assume(_,a)
   | Comment(_,a)
-  | Special(_,a) -> a
+  | Special(_,_,a) -> a
