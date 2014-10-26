@@ -890,11 +890,11 @@ let string_incr mode t v =
 let rep_wrap ?check_zf ~mode ~addr ~next stmts =
   let bi = big_int_of_mode mode in
   let endstmt = match check_zf with
-    | None -> Jmp(bi addr, [])
+    | None -> [Jmp(bi addr, [])]
     | Some x when x = repz ->
-      CJmp(zf_e, bi addr, bi next, [])
+      cjmp zf_e (bi addr)
     | Some x when x = repnz ->
-      CJmp(zf_e, bi next, bi addr, [])
+      cjmp zf_e (bi addr)
     | _ -> failwith "invalid value for ?check_zf"
   in
   let rcx = gv mode rcx in
@@ -902,8 +902,8 @@ let rep_wrap ?check_zf ~mode ~addr ~next stmts =
   cjmp (rcx_e ==* bi (bi0)) (bi next)
   @ stmts
   @ move rcx (rcx_e -* bi (bi1))
-  :: cjmp (rcx_e ==* bi (bi0)) (bi next)
-  @ [endstmt]
+  :: endstmt
+  @ [CJmp(rcx_e ==* bi (bi0), bi next, bi addr, [])]
 
 let reta = [StrAttr "ret"]
 and calla = [StrAttr "call"]
