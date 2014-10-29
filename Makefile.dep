@@ -21,5 +21,6 @@ lib,unix
 lib,str
 lib,zarith,1.2
 lib,batteries,2.1
+lib,ocamlgraph
 # check headers
 header,bfd.h

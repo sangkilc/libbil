@@ -3,6 +3,8 @@ Asmir
 Ast
 Ast_convenience
 Big_int_convenience
+Cfg
+Cfg_ast
 Disasm
 Disasm_exc
 Disasm_i386

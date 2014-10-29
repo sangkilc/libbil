@@ -75,6 +75,7 @@ let _ = dispatch begin function
          "pkg_unix";
          "pkg_zarith";
          "pkg_batteries";
+         "pkg_ocamlgraph";
         ];
 
       tag_file "libbfd/bfdwrap_stubs.c" ["stubs"];

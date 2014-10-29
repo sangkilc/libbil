@@ -47,6 +47,9 @@ install: depcheck all
 		_build/src/ast.cmi \
 		_build/src/type.cmi \
 		_build/src/type.mli \
+		_build/src/var.cmi \
+		_build/src/var.mli \
+		_build/src/big_int_convenience.cmi \
 		_build/dllbfdarch_stubs.so \
 		_build/libbfdarch_stubs.a \
 		_build/dllbfdwrap_stubs.so \
