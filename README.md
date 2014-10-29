@@ -18,6 +18,7 @@ Dependency
 * Zarith (above 1.2)
 * Batteries (above 2.1)
 * BinUtils
+* OCamlGraph
 
 Installation
 ------------
@@ -28,7 +29,7 @@ Installation
 
 ```
 apt-get install ocaml camlidl ocaml-findlib binutils-dev \
-  libzarith-ocaml-dev libbatteries-ocaml-dev
+  libzarith-ocaml-dev libbatteries-ocaml-dev libocamlgraph-ocaml-dev
 ```
 
 ### Using Opam
@@ -38,7 +39,7 @@ management system have lower versions than required, we recommend you to use
 opam.
 
 ```
-opam install ocamlfind camlidl zarith batteries
+opam install ocamlfind camlidl zarith batteries ocamlgraph
 ```
 
 When you use Opam, it is still necessary to install BinUtils. You can use the
