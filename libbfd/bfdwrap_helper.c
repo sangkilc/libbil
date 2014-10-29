@@ -52,6 +52,8 @@ struct bfd* new_bfd_internal( const char* filename, int arch )
     char** matching;
     enum bfd_architecture _arch = (enum bfd_architecture) arch;
     struct bfd* p = bfd_openr( filename, DEFAULT_TARGET );
+    const bfd_arch_info_type* info;
+
     if ( !p ) error_exit( "failure: bfd_openr" );
 
     if ( _arch == bfd_arch_unknown ) {
@@ -77,7 +79,9 @@ struct bfd* new_bfd_internal( const char* filename, int arch )
         error_exit( "failed to load the given file" );
         return NULL; /* this will never be called */
     } else {
-        bfd_set_arch_info( p, bfd_lookup_arch(_arch, 0) );
+        info = bfd_lookup_arch( _arch, 0 );
+        if ( !info ) error_exit( "failed to lookup archicture" );
+        bfd_set_arch_info( p, info );
         return p;
     }
 }

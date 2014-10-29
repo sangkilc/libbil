@@ -23,16 +23,21 @@ type load_method =
   | LoadExec  (* parse the file as an ELF executable *)
 
 let current_method = ref LoadBytes
+let current_arch = ref X86_32
+
+let set_arch = function
+  | "amd64" -> current_arch := X86_64
+  | _ -> current_arch := X86_32
 
 let load_bytes file =
-  let bh = bil_open ~arch:X86_32 None in
+  let bh = bil_open ~arch:!current_arch None in
   let bytes = Util.load_file file in
   let p = of_bytesequence bh bytes Big_int_Z.zero_big_int in
   print_program p;
   bil_close bh
 
 let load_exec file =
-  let bh = bil_open ~arch:X86_32 (Some file) in
+  let bh = bil_open ~arch:!current_arch (Some file) in
   let entry = entry_point bh in
   let p, next = of_addr bh (Big_int_Z.big_int_of_int64 entry) in
   print_program [p];
@@ -43,14 +48,43 @@ let file_to_il file =
     | LoadBytes -> load_bytes file
     | LoadExec -> load_exec file
 
+let hexstring_to_string hexstr =
+  let hexchar prev curr =
+    int_of_string (Printf.sprintf "0x%c%c" prev curr) |> char_of_int
+  in
+  let len = String.length hexstr in
+  assert (len mod 2 = 0);
+  let str = String.make (len / 2) '\x00' in
+  let _ =
+    BatString.fold_left (fun (pos, prev) ch ->
+      match prev with
+        | None -> pos, Some ch
+        | Some prev -> str.[pos] <- (hexchar prev ch); pos+1, None
+    ) (0, None) hexstr
+  in
+  str
+
+let cmd_to_il arg =
+  let bytes = hexstring_to_string arg in
+  let bh = bil_open ~arch:!current_arch None in
+  let p = of_bytesequence bh bytes Big_int_Z.zero_big_int in
+  print_program p;
+  bil_close bh
+
 let specs =
   [
+    ("-arch",
+     Arg.String set_arch,
+     " specify an architecture (x86|amd64|...)");
     ("-bytes",
      Arg.Unit (fun () -> current_method := LoadBytes),
      " consider the file as a byte sequence");
     ("-exec",
      Arg.Unit (fun () -> current_method := LoadExec),
      " consider the file as an ELF executable");
+    ("-cmd",
+     Arg.String cmd_to_il,
+     " convert a cmd arg. into an il");
     ("--", Arg.Rest file_to_il, " specify files to load");
   ]
 

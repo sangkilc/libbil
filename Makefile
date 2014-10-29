@@ -44,11 +44,17 @@ install: depcheck all
 		_build/src/bil.cmxa \
 		_build/src/libBil.cmi \
 		_build/src/libBil.mli \
+		_build/src/arch.cmi \
+		_build/src/arch.mli \
 		_build/src/ast.cmi \
 		_build/src/type.cmi \
 		_build/src/type.mli \
 		_build/src/var.cmi \
 		_build/src/var.mli \
+		_build/src/cfg.cmi \
+		_build/src/cfg.mli \
+		_build/src/cfg_ast.cmi \
+		_build/src/cfg_ast.mli \
 		_build/src/big_int_convenience.cmi \
 		_build/dllbfdarch_stubs.so \
 		_build/libbfdarch_stubs.a \
