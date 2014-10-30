@@ -1,6 +1,6 @@
 name = "libbil"
 version = "0.8"
 description = "libBIL, BAP IL"
-requires = "unix,str,zarith,batteries"
+requires = "unix,str,zarith,batteries,ocamlgraph"
 archive(byte) = ""
 archive(native) = "bil.cmxa"

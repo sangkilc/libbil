@@ -20,13 +20,16 @@ open Arch
 open Type
 open Big_int_convenience
 open Bfdwrap
+open Big_int_Z
 
 module IntervalTree = Map.Make(struct
+
   type t = string * addr * addr
+
   let compare (_,s1,e1) (_,s2,e2) =
-    if Big_int_Z.compare_big_int s1 s2 >= 0 && Big_int_Z.compare_big_int e1 e2 < 0 then 0
-    else if Big_int_Z.compare_big_int s1 s2 <= 0 && Big_int_Z.compare_big_int e1 e2 > 0 then 0
-    else if Big_int_Z.compare_big_int s1 s2 > 0 then 1
+    if compare_big_int s1 s2 >= 0 && compare_big_int e1 e2 < 0 then 0
+    else if compare_big_int s1 s2 <= 0 && compare_big_int e1 e2 > 0 then 0
+    else if compare_big_int s1 s2 > 0 then 1
     else -1
 end)
 
@@ -66,17 +69,23 @@ let asm_addr_to_bil handle get_exec addr =
   update_asm v handle.bhp addr
 
 let byte_sequence_to_bil handle bytes (addr:Type.addr) =
+  (* assume that byte sequence has a correct size (no extra bytes) *)
   let handle = update_disasm_buf handle bytes addr in
   let len = String.length bytes in
-  let end_addr = addr +% (Big_int_Z.big_int_of_int len) in
-  let get_exec a = String.get bytes (Big_int_Z.int_of_big_int (a -% addr)) in
+  let end_addr = addr +% (big_int_of_int len) in
+  let get_exec a = String.get bytes (int_of_big_int (a -% addr)) in
   let rec read_all acc cur_addr =
     if cur_addr >= end_addr then List.rev acc
     else
       let prog, next = asm_addr_to_bil handle get_exec cur_addr in
-      read_all (prog::acc) next
+      read_all ((prog, (next -% cur_addr))::acc) next
   in
   read_all [] addr
+
+let byte_sequence_to_stmt handle bytes (addr:Type.addr) =
+  let handle = update_disasm_buf handle bytes addr in
+  let get_exec a = String.get bytes (int_of_big_int (a -% addr)) in
+  asm_addr_to_bil handle get_exec addr
 
 let find_section addr sections =
   IntervalTree.find ("", addr, addr) sections
@@ -84,12 +93,12 @@ let find_section addr sections =
 let instr_to_bil handle (addr:Type.addr) =
   let data, s_addr, _e_addr = find_section addr handle.sections in
   let get_exec a =
-    let offset = Big_int_Z.int_of_big_int (a -% s_addr) in
+    let offset = int_of_big_int (a -% s_addr) in
     String.get data offset
   in
   let (il, next_addr) as v = toil handle.arch get_exec addr in
-  let offset = Big_int_Z.int_of_big_int (addr -% s_addr) in
-  let len = Big_int_Z.int_of_big_int (next_addr -% addr) in
+  let offset = int_of_big_int (addr -% s_addr) in
+  let len = int_of_big_int (next_addr -% addr) in
   let bytes = String.sub data offset len in
   let handle = update_disasm_buf handle bytes addr in
   update_asm v handle.bhp addr

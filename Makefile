@@ -46,11 +46,16 @@ install: depcheck all
 		_build/src/libBil.mli \
 		_build/src/arch.cmi \
 		_build/src/arch.mli \
+		_build/src/arithmetic.cmi \
 		_build/src/ast.cmi \
+		_build/src/dominator.cmi \
 		_build/src/type.cmi \
 		_build/src/type.mli \
 		_build/src/var.cmi \
 		_build/src/var.mli \
+		_build/src/disasm_i386.cmi \
+		_build/src/disasm_i386.mli \
+		_build/src/pp.cmi \
 		_build/src/cfg.cmi \
 		_build/src/cfg.mli \
 		_build/src/cfg_ast.cmi \

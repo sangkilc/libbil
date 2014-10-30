@@ -22,11 +22,13 @@ val bil_open : ?arch:Arch.arch -> string option -> t
 
 val bil_close : t -> unit
 
-val of_bytesequence : t -> string -> Type.addr -> Ast.stmt list list
+val of_bytesequence : t -> string -> Type.addr -> (Ast.program * Z.t) list
 
 val of_addr : t -> Type.addr -> Ast.stmt list * Type.addr
 
+val stmt_of_seq : t -> string -> Type.addr -> Ast.program * Type.addr
+
 val entry_point : t -> int64
 
-val print_program : Ast.program list -> unit
+val print_prog : Ast.program -> unit
 

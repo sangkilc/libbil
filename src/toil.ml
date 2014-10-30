@@ -29,18 +29,21 @@ let set_arch = function
   | "amd64" -> current_arch := X86_64
   | _ -> current_arch := X86_32
 
+let print_blocks blk =
+  List.iter (fun (prog, _size) -> print_prog prog) blk
+
 let load_bytes file =
   let bh = bil_open ~arch:!current_arch None in
   let bytes = Util.load_file file in
   let p = of_bytesequence bh bytes Big_int_Z.zero_big_int in
-  print_program p;
+  print_blocks p;
   bil_close bh
 
 let load_exec file =
   let bh = bil_open ~arch:!current_arch (Some file) in
   let entry = entry_point bh in
   let p, next = of_addr bh (Big_int_Z.big_int_of_int64 entry) in
-  print_program [p];
+  print_prog p;
   bil_close bh
 
 let file_to_il file =
@@ -68,7 +71,7 @@ let cmd_to_il arg =
   let bytes = hexstring_to_string arg in
   let bh = bil_open ~arch:!current_arch None in
   let p = of_bytesequence bh bytes Big_int_Z.zero_big_int in
-  print_program p;
+  print_blocks p;
   bil_close bh
 
 let specs =

@@ -37,8 +37,9 @@ let of_addr bh addr =
 let entry_point bh =
   get_entry_point bh
 
-let print_program prog =
-  List.iter (fun instr ->
-    List.iter (fun stmt -> print_endline (Pp.ast_stmt_to_string stmt)) instr
-  ) prog
+let stmt_of_seq bh bytes addr =
+  byte_sequence_to_stmt bh bytes addr
+
+let print_prog prog =
+  List.iter (fun stmt -> print_endline (Pp.ast_stmt_to_string stmt)) prog
 

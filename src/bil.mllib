@@ -8,6 +8,7 @@ Cfg_ast
 Disasm
 Disasm_exc
 Disasm_i386
+Dominator
 Pp
 Ssa
 Type
