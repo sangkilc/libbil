@@ -95,14 +95,14 @@ let instr_to_bil handle (addr:Type.addr) =
   update_asm v handle.bhp addr
 
 let arch_to_bfd = function
-  | X86_32 -> Bfdarch.Arch_i386
-  | X86_64 -> Bfdarch.Arch_ia64
+  | X86_32 -> Bfdarch.Arch_i386, 0
+  | X86_64 -> Bfdarch.Arch_i386, (1 lsl 3) (* bfd_mach_x86_64 *)
 
 let asmir_open arch file =
   let bhp =
     match file with
       | Some file -> new_bfd_from_file file
-      | None -> new_bfd_from_buf (arch_to_bfd arch)
+      | None -> BatPervasives.uncurry new_bfd_from_buf (arch_to_bfd arch)
   in
   let sections =
     List.fold_left (fun acc (content, sa, ea) ->

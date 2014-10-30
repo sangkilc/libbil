@@ -26,7 +26,8 @@ typedef [mltype("(string * int64 * int64) list"),
          c2ml(c2ml_identity), ml2c(ml2c_identity)]
 struct _sec_data* sec_data;
 
-bhp new_bfd_from_buf( [in] enum architecture arch );
+bhp new_bfd_from_buf( [in] enum architecture arch,
+                      [in] int machine );
 bhp new_bfd_from_file( [in,string] const char* filename );
 
 void delete_bfd( bhp abfd );

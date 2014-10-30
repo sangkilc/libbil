@@ -47,7 +47,8 @@ void error_exit( const char* msg )
 }
 
 static
-struct bfd* new_bfd_internal( const char* filename, int arch )
+struct bfd* new_bfd_internal( const char* filename,
+                              int arch, int machine )
 {
     char** matching;
     enum bfd_architecture _arch = (enum bfd_architecture) arch;
@@ -79,7 +80,7 @@ struct bfd* new_bfd_internal( const char* filename, int arch )
         error_exit( "failed to load the given file" );
         return NULL; /* this will never be called */
     } else {
-        info = bfd_lookup_arch( _arch, 0 );
+        info = bfd_lookup_arch( _arch, machine );
         if ( !info ) error_exit( "failed to lookup archicture" );
         bfd_set_arch_info( p, info );
         return p;
@@ -114,26 +115,27 @@ struct disassemble_info* new_disasm_info( struct bfd* abfd )
     return di;
 }
 
-bh* new_bfd( const char* filename, int arch, int is_from_file )
+bh* new_bfd( const char* filename,
+             int arch, int machine, int is_from_file )
 {
     bh* p = (bh*) malloc( sizeof( bh ) );
     if ( !p ) error_exit( "failure: new_bfd.malloc" );
 
-    p->bfdp = new_bfd_internal( filename, arch );
+    p->bfdp = new_bfd_internal( filename, arch, machine );
     p->disasp = new_disasm_info( p->bfdp );
     p->is_from_file = is_from_file;
 
     return p;
 }
 
-bhp new_bfd_from_buf( int arch )
+bhp new_bfd_from_buf( int arch, int machine )
 {
-    return new_bfd( "/dev/null", arch, 0 );
+    return new_bfd( "/dev/null", arch, machine, 0 );
 }
 
 bhp new_bfd_from_file( const char* filename )
 {
-    return new_bfd( filename, bfd_arch_unknown, 1 );
+    return new_bfd( filename, bfd_arch_unknown, 0, 1 );
 }
 
 void delete_bfd( bhp _p )
