@@ -26,7 +26,7 @@ val of_bytesequence : t -> string -> Type.addr -> (Ast.program * Z.t) list
 
 val of_addr : t -> Type.addr -> Ast.stmt list * Type.addr
 
-val stmt_of_seq : t -> string -> Type.addr -> Ast.program * Type.addr
+val stmt_of_seq : t -> string -> Type.addr -> Ast.program * Z.t
 
 val entry_point : t -> int64
 

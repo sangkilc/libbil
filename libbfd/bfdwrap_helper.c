@@ -164,11 +164,9 @@ void update_disasm_info( bhp _p,
     bh* p = (bh*) _p;
     struct disassemble_info* di = p->disasp;
 
-    if ( malloc_usable_size( di->buffer ) < len ) {
-        aux = (bfd_byte*) realloc( di->buffer, len );
-        if ( !aux ) error_exit( "update_disasm_info.realloc failed" );
-        di->buffer = aux;
-    }
+    aux = (bfd_byte*) realloc( di->buffer, len );
+    if ( !aux ) error_exit( "update_disasm_info.realloc failed" );
+    di->buffer = aux;
 
     di->buffer_vma = (bfd_vma) addr;
     di->buffer_length = len;
@@ -198,13 +196,8 @@ int bprintf( struct bprintf_buffer *dest, const char *fmt, ... )
 
         // we seem to need to call va_start again... is this legal?
         dest->size = dest->size + ret + 1 - size_left;
-
-        if ( malloc_usable_size( dest->str ) < dest->size ) {
-            str = (char*) realloc( dest->str, dest->size );
-            if ( !str ) error_exit( "bprintf.realloc failed" );
-        } else {
-            str = dest->str;
-        }
+        str = (char*) realloc( dest->str, dest->size );
+        if ( !str ) error_exit( "bprintf.realloc failed" );
 
         dest->end = str + (dest->end - dest->str);
         dest->str = str;

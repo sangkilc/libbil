@@ -85,7 +85,8 @@ let byte_sequence_to_bil handle bytes (addr:Type.addr) =
 let byte_sequence_to_stmt handle bytes (addr:Type.addr) =
   let handle = update_disasm_buf handle bytes addr in
   let get_exec a = String.get bytes (int_of_big_int (a -% addr)) in
-  asm_addr_to_bil handle get_exec addr
+  let prog, next = asm_addr_to_bil handle get_exec addr in
+  prog, (next -% addr)
 
 let find_section addr sections =
   IntervalTree.find ("", addr, addr) sections
