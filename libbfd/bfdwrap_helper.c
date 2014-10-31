@@ -242,6 +242,24 @@ unsigned long long get_entry_point( bhp _p )
     return (unsigned long long) p->bfdp->start_address;
 }
 
+static int ignore() {
+  return 1;
+}
+
+int get_instr_length( bhp _p, long long addr )
+{
+    int len;
+    bh* p = (bh*) _p;
+    struct disassemble_info* di = p->disasp;
+    disassembler_ftype disas = disassembler( p->bfdp );
+    fprintf_ftype old_fprintf_func = di->fprintf_func;
+    di->fprintf_func = (fprintf_ftype) ignore;
+    len = disas( addr, di );
+    di->fprintf_func = old_fprintf_func;
+
+    return len;
+}
+
 value c2ml_identity( sec_data* input )
 {
     return (value) *input;

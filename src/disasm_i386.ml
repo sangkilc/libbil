@@ -54,8 +54,6 @@ let compute_segment_bases = ref false
 
 (* type segment = CS | SS | DS | ES | FS | GS *)
 
-exception Disasm_i386_exception of string
-
 type binopf = Ast.exp -> Ast.exp -> Ast.exp
 
 type mode = X86 | X8664
@@ -308,7 +306,7 @@ type prefix = {
 }
 
 (** disfailwith is a non-fatal disassembly exception. *)
-let disfailwith s = raise (Disasm_i386_exception s)
+let disfailwith s = raise (Disasm_exc.DisasmException s)
 
 let unimplemented s  = disfailwith ("disasm_i386: unimplemented feature: "^s)
 

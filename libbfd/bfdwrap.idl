@@ -42,5 +42,7 @@ void update_disasm_info( [in] bhp _p,
 
 unsigned __int64 get_entry_point( [in] bhp _p );
 
+int get_instr_length( [in] bhp _p, [in] __int64 addr );
+
 sec_data get_section_data( [in] bhp _p );
 

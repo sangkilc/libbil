@@ -48,13 +48,17 @@ let update_disasm_buf handle bytes addr =
 let string_of_insn handle addr =
   disasm handle (addr_to_int64 addr)
 
-let toil arch get_exec addr =
+let toil arch bhp get_exec addr =
   try
     (Disasm.disasm_instr arch get_exec addr)
   with Disasm_exc.DisasmException s -> begin
-    Printf.eprintf "BAP unknown disasm_instr %s: %s" (~%addr) s;
-    Printf.eprintf "disasm_instr %s: %s" (~%addr) s;
-    raise Disasm.Unimplemented
+    let addr64 = addr_to_int64 addr in
+    (* Printf.eprintf "0x%Lx: %s\n" addr64 s; *)
+    let ir =
+      [Special(Printf.sprintf "Unknown instruction at %Lx" addr64, None, [])]
+    in
+    Disasm_i386.ToIR.add_labels addr ir,
+    addr +% (big_int_of_int (get_instr_length bhp addr64))
   end
 
 let update_asm ((ir, next_addr) as v) bhp addr =
@@ -65,7 +69,7 @@ let update_asm ((ir, next_addr) as v) bhp addr =
         v
 
 let asm_addr_to_bil handle get_exec addr =
-  let v = toil handle.arch get_exec addr in
+  let v = toil handle.arch handle.bhp get_exec addr in
   update_asm v handle.bhp addr
 
 let byte_sequence_to_bil handle bytes (addr:Type.addr) =
@@ -97,7 +101,7 @@ let instr_to_bil handle (addr:Type.addr) =
     let offset = int_of_big_int (a -% s_addr) in
     String.get data offset
   in
-  let (il, next_addr) as v = toil handle.arch get_exec addr in
+  let (il, next_addr) as v = toil handle.arch handle.bhp get_exec addr in
   let offset = int_of_big_int (addr -% s_addr) in
   let len = int_of_big_int (next_addr -% addr) in
   let bytes = String.sub data offset len in

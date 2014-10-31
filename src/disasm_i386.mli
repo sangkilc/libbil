@@ -1,5 +1,3 @@
-exception Disasm_i386_exception of string
-
 type binopf = Ast.exp -> Ast.exp -> Ast.exp (* below: opcode *)
 
 type mode = X86 | X8664             (* ocaml/arch.ml *)
