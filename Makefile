@@ -39,6 +39,7 @@ libbfd/bfdarch.idl:
 		  > libbfd/bfdarch.idl
 
 install: depcheck all
+	@ocamlfind remove libbil
 	ocamlfind install libbil META \
 		_build/src/bil.a \
 		_build/src/bil.cmxa \
@@ -61,9 +62,7 @@ install: depcheck all
 		_build/src/cfg_ast.cmi \
 		_build/src/cfg_ast.mli \
 		_build/src/big_int_convenience.cmi \
-		_build/dllbfdarch_stubs.so \
 		_build/libbfdarch_stubs.a \
-		_build/dllbfdwrap_stubs.so \
 		_build/libbfdwrap_stubs.a
 
 .PHONY: all clean depcheck install
