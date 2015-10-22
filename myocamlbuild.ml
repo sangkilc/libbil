@@ -50,6 +50,9 @@ let camlidl = S([A"camlidl"])
 (* ocaml path *)
 let ocamlpath = List.hd & split_nl & run_and_read "ocamlfind printconf path"
 
+(* camlidl path *)
+let camlidl_path = List.hd & split_nl & run_and_read "ocamlfind query camlidl"
+
 let _ = dispatch begin function
   | Before_options ->
 
@@ -109,7 +112,7 @@ let _ = dispatch begin function
 
       (* c stub generated from camlidl *)
       flag ["c"; "compile"; "stubs"]
-        (S[A"-ccopt";A("-I"^ocamlpath^"/camlidl");]);
+        (S[A"-ccopt";A("-I"^camlidl_path);]);
 
       (* camlidl needs to consider bfdarch *)
       flag ["camlidl"; "compile"]
@@ -136,7 +139,7 @@ let _ = dispatch begin function
           A"-cclib"; A"-lbfdarch_stubs";
           A"-cclib"; A"-lbfd";
           A"-cclib"; A"-lopcodes";
-          A"-cclib"; A("-L"^ocamlpath^"/camlidl");
+          A"-cclib"; A("-L"^camlidl_path);
           A"-cclib"; A"-lcamlidl";
         ]);
 

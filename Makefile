@@ -29,7 +29,7 @@ libbfd/libbfd.idl: libbfd/bfdarch.idl
 
 libbfd/bfdarch.idl:
 	echo '#include "bfd.h"' \
-		| $(CC) -E -xc - \
+		| $(CC) -DPACKAGE -E -xc - \
 		| awk 'BEGIN { go=0; } /^enum bfd_architecture$$/ { go=1; } \
 		       go && $$0 != "" { print; } \
 		       /machine_t/ { print; } \
