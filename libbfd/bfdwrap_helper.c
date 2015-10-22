@@ -17,6 +17,7 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 
 #include "bfdwrap.h"
 
+#define PACKAGE
 #include <bfd.h>
 #include <dis-asm.h>
 #include <stdio.h>

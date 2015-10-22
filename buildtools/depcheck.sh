@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 ###############################################################################
 # OCaml dependency checker                                                    #
@@ -73,7 +73,7 @@ EOF
     exit 1
   fi
 
-  gcc -Wall -Werror $tmpfile -o $tmpdir/a.out
+  gcc -DPACKAGE -Wall -Werror $tmpfile -o $tmpdir/a.out
   success=$?
   rm -rf $tmpdir
 
